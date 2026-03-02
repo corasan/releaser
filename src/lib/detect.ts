@@ -1,7 +1,8 @@
+import { $ } from 'bun'
 import { existsSync } from 'fs'
 import { readdir } from 'fs/promises'
 import { join } from 'path'
-import type { ProjectInfo } from './types.js'
+import type { DetectedEnv, ProjectInfo } from './types.js'
 
 export async function detectProject(cwd: string): Promise<ProjectInfo> {
   const pkgPath = join(cwd, 'package.json')
@@ -15,7 +16,6 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
   if (pkg && (pkg.dependencies?.expo || pkg.devDependencies?.expo)) {
     const appConfigTs = join(cwd, 'app.config.ts')
     const appConfigJs = join(cwd, 'app.config.js')
-    const appJson = join(cwd, 'app.json')
     const appConfig = existsSync(appConfigTs)
       ? 'app.config.ts'
       : existsSync(appConfigJs)
@@ -35,8 +35,7 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
   }
 
   // Check for Tauri
-  const tauriV1Conf = join(cwd, 'src-tauri', 'tauri.conf.json')
-  const tauriV2Conf = join(cwd, 'src-tauri', 'tauri.conf.json')
+  const tauriConf = join(cwd, 'src-tauri', 'tauri.conf.json')
   const srcTauriDir = join(cwd, 'src-tauri')
 
   if (existsSync(srcTauriDir)) {
@@ -47,7 +46,7 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
       version: pkg?.version || '0.0.0',
       path: cwd,
       tauri: {
-        configPath: existsSync(tauriV1Conf) ? tauriV1Conf : tauriV2Conf,
+        configPath: existsSync(tauriConf) ? tauriConf : join(srcTauriDir, 'tauri.conf.json'),
         version: tauriVersion,
       },
     }
@@ -60,6 +59,7 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
       f => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace'),
     )
     if (xcodeProject) {
+      const schemes = await detectXcodeSchemes(join(cwd, xcodeProject))
       return {
         type: 'macos',
         name: xcodeProject.replace(/\.(xcodeproj|xcworkspace)$/, ''),
@@ -67,6 +67,7 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
         path: cwd,
         macos: {
           xcodeProject: join(cwd, xcodeProject),
+          schemes,
         },
       }
     }
@@ -93,6 +94,52 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
     name: 'unknown',
     version: '0.0.0',
     path: cwd,
+  }
+}
+
+/** Auto-detect environment capabilities */
+export async function detectEnv(cwd: string): Promise<DetectedEnv> {
+  const [hasBuildScript, hasTestScript, hasGhCli, hasEasCli] = await Promise.all([
+    detectScript(cwd, 'build'),
+    detectScript(cwd, 'test'),
+    commandExists('gh'),
+    commandExists('eas'),
+  ])
+
+  return { hasBuildScript, hasTestScript, hasGhCli, hasEasCli }
+}
+
+async function detectScript(cwd: string, name: string): Promise<boolean> {
+  try {
+    const pkg = await Bun.file(join(cwd, 'package.json')).json()
+    return !!pkg.scripts?.[name]
+  } catch {
+    return false
+  }
+}
+
+async function commandExists(cmd: string): Promise<boolean> {
+  try {
+    await $`which ${cmd}`.quiet()
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function detectXcodeSchemes(projectPath: string): Promise<string[]> {
+  try {
+    const output = await $`xcodebuild -list -project ${projectPath} 2>/dev/null`.text()
+    const schemesMatch = output.match(/Schemes:\n([\s\S]*?)(?:\n\n|$)/)
+    if (schemesMatch) {
+      return schemesMatch[1]
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    }
+    return []
+  } catch {
+    return []
   }
 }
 

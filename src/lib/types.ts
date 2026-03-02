@@ -9,43 +9,47 @@ export interface ProjectInfo {
   npm?: { private: boolean; registry?: string }
   expo?: { easConfigured: boolean; appConfig: string }
   tauri?: { configPath: string; version?: number }
-  macos?: { xcodeProject: string; scheme?: string }
+  macos?: { xcodeProject: string; schemes?: string[] }
 }
 
-export interface ReleaseConfig {
-  type?: ProjectType
-  npm?: {
-    publish?: boolean
-    registry?: string
-    access?: 'public' | 'restricted'
-  }
-  expo?: {
-    buildPlatform?: 'ios' | 'android' | 'all'
-    submitToStore?: boolean
-    profile?: string
-  }
-  tauri?: {
-    build?: boolean
-    targets?: string[]
-  }
-  macos?: {
-    scheme?: string
-    notarize?: boolean
-    identity?: string
-  }
-  github?: {
-    release?: boolean
-    generateNotes?: boolean
-    draft?: boolean
-  }
-  ai?: {
-    changelog?: boolean
-  }
-  hooks?: {
-    beforeRelease?: string
-    afterRelease?: string
-  }
+/** Auto-detected environment capabilities */
+export interface DetectedEnv {
+  hasBuildScript: boolean
+  hasTestScript: boolean
+  hasGhCli: boolean
+  hasEasCli: boolean
 }
+
+// ─── Config-driven UI ────────────────────────────────────────────
+
+/** A single UI option derived from project config files */
+export interface UIOption {
+  id: string
+  label: string
+  type: 'select' | 'confirm'
+  items: UIOptionItem[]
+  /** Only show this option if a condition on prior answers is met */
+  when?: (answers: Answers) => boolean
+}
+
+export interface UIOptionItem {
+  label: string
+  value: string
+  hint?: string
+}
+
+/** Parsed project config — the source of truth for dynamic UI + pipeline behavior */
+export interface ParsedProjectConfig {
+  /** Dynamic UI options generated from project config files */
+  options: UIOption[]
+  /** Structured data from config files, used by pipelines */
+  data: Record<string, any>
+}
+
+/** Dynamic answers collected from config-driven prompts */
+export type Answers = Record<string, string>
+
+// ─── Release pipeline ────────────────────────────────────────────
 
 export type StepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped'
 
@@ -68,9 +72,10 @@ export interface ReleaseContext {
   bump: Bump
   newVersion: string
   tag: string
-  config: ReleaseConfig
+  env: DetectedEnv
+  answers: Answers
+  projectConfig: ParsedProjectConfig
   changelog?: string
-  dryRun?: boolean
 }
 
 export interface CompletedPhase {

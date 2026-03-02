@@ -11,18 +11,22 @@ import type { PipelineStep, ReleaseContext } from '../types.js'
 
 export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
   const steps: PipelineStep[] = []
+  const { data } = ctx.projectConfig
 
-  if (ctx.config.hooks?.beforeRelease) {
+  const profile = ctx.answers.profile || data.defaultProfile || 'production'
+  const platform = ctx.answers.platform || data.defaultPlatform || 'all'
+  const shouldSubmit = ctx.answers.submit === 'yes'
+
+  if (ctx.env.hasTestScript) {
     steps.push({
-      id: 'pre-hook',
-      label: 'Run pre-release hook',
+      id: 'test',
+      label: 'Run tests',
       execute: async ctx => {
-        await $`sh -c ${ctx.config.hooks!.beforeRelease!}`.cwd(ctx.project.path)
+        await $`bun run test`.cwd(ctx.project.path)
       },
     })
   }
 
-  // Set up EAS if not configured
   if (!ctx.project.expo?.easConfigured) {
     steps.push({
       id: 'eas-setup',
@@ -46,32 +50,28 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
 
   steps.push({
     id: 'bump-app-config',
-    label: 'Bump version in app config',
+    label: 'Bump version + build number in app config',
     execute: async ctx => {
       const appConfig = ctx.project.expo?.appConfig || 'app.config.ts'
       const configPath = join(ctx.project.path, appConfig)
-
       if (!existsSync(configPath)) return
 
       if (appConfig === 'app.json') {
         const json = await Bun.file(configPath).json()
-        if (json.expo) {
-          json.expo.version = ctx.newVersion
-          // Auto-increment build number
-          const currentBuild = Number.parseInt(
-            json.expo.ios?.buildNumber || '0',
-            2,
-          )
-          if (json.expo.ios)
-            json.expo.ios.buildNumber = String(currentBuild + 1)
-          if (json.expo.android) {
-            json.expo.android.versionCode =
-              (json.expo.android.versionCode || 0) + 1
-          }
+        const expo = json.expo || json
+
+        expo.version = ctx.newVersion
+
+        if (expo.ios) {
+          const currentBuild = parseInt(expo.ios.buildNumber || '0')
+          expo.ios.buildNumber = String(currentBuild + 1)
         }
+        if (expo.android) {
+          expo.android.versionCode = (expo.android.versionCode || 0) + 1
+        }
+
         await Bun.write(configPath, JSON.stringify(json, null, 2) + '\n')
       } else {
-        // For app.config.ts/js, do regex replacement
         let content = await Bun.file(configPath).text()
         content = content.replace(
           /version:\s*['"][0-9]+\.[0-9]+\.[0-9]+['"]/,
@@ -89,8 +89,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       if (!ctx.changelog) return
       const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
       const date = new Date().toISOString().split('T')[0]
-      const header = `## ${ctx.newVersion} (${date})\n\n`
-      const entry = header + ctx.changelog + '\n\n'
+      const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
 
       if (existsSync(changelogPath)) {
         const existing = await Bun.file(changelogPath).text()
@@ -108,16 +107,14 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
     execute: async ctx => {
       const files = ['package.json']
       const appConfig = ctx.project.expo?.appConfig
-      if (appConfig) files.push(appConfig)
-      const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
-      if (existsSync(changelogPath)) files.push('CHANGELOG.md')
+      if (appConfig && existsSync(join(ctx.project.path, appConfig))) files.push(appConfig)
+      if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) files.push('CHANGELOG.md')
       if (
         !ctx.project.expo?.easConfigured &&
         existsSync(join(ctx.project.path, 'eas.json'))
       ) {
         files.push('eas.json')
       }
-
       await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
     },
   })
@@ -131,53 +128,36 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
     },
   })
 
-  // EAS Build
-  const platform = ctx.config.expo?.buildPlatform || 'all'
-  const profile = ctx.config.expo?.profile || 'production'
-
+  const platformLabel = platform === 'all' ? 'iOS + Android' : platform
   steps.push({
     id: 'eas-build',
-    label: `Trigger EAS build (${platform})`,
+    label: `EAS build (${profile}, ${platformLabel})`,
     execute: async ctx => {
-      await $`bunx eas-cli build --platform ${platform} --profile ${profile} --non-interactive`.cwd(
+      const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
+      const prof = ctx.answers.profile || ctx.projectConfig.data.defaultProfile || 'production'
+      await $`bunx eas-cli build --platform ${p} --profile ${prof} --non-interactive`.cwd(
         ctx.project.path,
       )
     },
   })
 
-  if (ctx.config.expo?.submitToStore) {
+  if (shouldSubmit) {
     steps.push({
       id: 'eas-submit',
-      label: 'Submit to app stores',
+      label: `Submit to stores (${platformLabel})`,
       execute: async ctx => {
-        await $`bunx eas-cli submit --platform ${platform} --non-interactive`.cwd(
-          ctx.project.path,
-        )
+        const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
+        await $`bunx eas-cli submit --platform ${p} --non-interactive`.cwd(ctx.project.path)
       },
     })
   }
 
-  if (ctx.config.github?.release !== false) {
+  if (ctx.env.hasGhCli) {
     steps.push({
       id: 'github-release',
       label: 'Create GitHub release',
       execute: async ctx => {
-        await createGitHubRelease(
-          ctx.tag,
-          ctx.config.github?.generateNotes
-            ? undefined
-            : ctx.changelog || undefined,
-        )
-      },
-    })
-  }
-
-  if (ctx.config.hooks?.afterRelease) {
-    steps.push({
-      id: 'post-hook',
-      label: 'Run post-release hook',
-      execute: async ctx => {
-        await $`sh -c ${ctx.config.hooks!.afterRelease!}`.cwd(ctx.project.path)
+        await createGitHubRelease(ctx.tag, ctx.changelog)
       },
     })
   }

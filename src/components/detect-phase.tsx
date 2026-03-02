@@ -1,58 +1,50 @@
 import { Box, Text } from 'ink'
 import Spinner from 'ink-spinner'
 import React, { useEffect, useState } from 'react'
-import { loadConfig } from '../lib/config.js'
-import { detectProject, getProjectTypeLabel } from '../lib/detect.js'
-import { hasUncommittedChanges, isGitRepo } from '../lib/git.js'
-import type { ProjectInfo, ReleaseConfig } from '../lib/types.js'
+import { detectEnv, detectProject, getProjectTypeLabel } from '../lib/detect.js'
+import { isGitRepo, hasUncommittedChanges } from '../lib/git.js'
+import { readProjectConfig } from '../lib/project-config.js'
+import type { DetectedEnv, ParsedProjectConfig, ProjectInfo } from '../lib/types.js'
 
 interface DetectPhaseProps {
   cwd: string
-  onDetected: (project: ProjectInfo, config: ReleaseConfig) => void
+  onDetected: (project: ProjectInfo, env: DetectedEnv, config: ParsedProjectConfig) => void
   onError: (message: string) => void
 }
 
-type DetectState = 'checking' | 'done' | 'error'
-
 export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
-  const [state, setState] = useState<DetectState>('checking')
-  const [message, setMessage] = useState('Detecting project type...')
+  const [message, setMessage] = useState('Detecting project...')
 
   useEffect(() => {
     async function detect() {
-      // Check if we're in a git repo
       const isGit = await isGitRepo()
       if (!isGit) {
-        onError('Not a git repository. Please run releaser from a git project.')
+        onError('Not a git repository. Run releaser from a git project.')
         return
       }
 
-      // Check for uncommitted changes
       const dirty = await hasUncommittedChanges()
       if (dirty) {
-        onError(
-          'You have uncommitted changes. Please commit or stash them before releasing.',
-        )
+        onError('Uncommitted changes detected. Commit or stash before releasing.')
         return
       }
 
       setMessage('Analyzing project...')
 
-      const [project, config] = await Promise.all([
-        detectProject(cwd),
-        loadConfig(cwd),
-      ])
+      const project = await detectProject(cwd)
 
       if (project.type === 'unknown') {
-        onError(
-          'Could not detect project type. Create a releaser.config.ts to configure manually.',
-        )
+        onError('Could not detect project type. Supported: npm, Expo, Tauri, macOS.')
         return
       }
 
-      setState('done')
-      // Small delay so the user sees the detection result
-      setTimeout(() => onDetected(project, config), 500)
+      // Read config files + detect environment in parallel
+      const [env, config] = await Promise.all([
+        detectEnv(cwd),
+        readProjectConfig(project),
+      ])
+
+      setTimeout(() => onDetected(project, env, config), 500)
     }
 
     detect().catch(err => {
@@ -60,18 +52,14 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
     })
   }, [cwd])
 
-  if (state === 'checking') {
-    return (
-      <Box gap={1}>
-        <Text color="cyan">
-          <Spinner type="dots" />
-        </Text>
-        <Text>{message}</Text>
-      </Box>
-    )
-  }
-
-  return null
+  return (
+    <Box gap={1}>
+      <Text color="cyan">
+        <Spinner type="dots" />
+      </Text>
+      <Text>{message}</Text>
+    </Box>
+  )
 }
 
 export function DetectedBadge({ project }: { project: ProjectInfo }) {

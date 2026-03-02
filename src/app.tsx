@@ -8,15 +8,18 @@ import {
   DonePhase,
   ErrorPhase,
 } from './components/done-phase.js'
+import { DynamicOptions } from './components/dynamic-options.js'
 import { Header } from './components/header.js'
 import { ReleasePhase } from './components/release-phase.js'
 import { VersionSelect } from './components/version-select.js'
 import { getPipelineSteps } from './lib/pipelines/index.js'
 import type {
+  Answers,
   Bump,
+  DetectedEnv,
+  ParsedProjectConfig,
   PipelineStep,
   ProjectInfo,
-  ReleaseConfig,
   ReleaseContext,
 } from './lib/types.js'
 import { bumpVersion } from './lib/version.js'
@@ -24,6 +27,7 @@ import { bumpVersion } from './lib/version.js'
 type Phase =
   | 'detect'
   | 'version'
+  | 'options'
   | 'ai'
   | 'confirm'
   | 'release'
@@ -36,8 +40,15 @@ export function App() {
 
   const [phase, setPhase] = useState<Phase>('detect')
   const [project, setProject] = useState<ProjectInfo | null>(null)
-  const [config, setConfig] = useState<ReleaseConfig>({})
+  const [env, setEnv] = useState<DetectedEnv>({
+    hasBuildScript: false,
+    hasTestScript: false,
+    hasGhCli: false,
+    hasEasCli: false,
+  })
+  const [projectConfig, setProjectConfig] = useState<ParsedProjectConfig>({ options: [], data: {} })
   const [bump, setBump] = useState<Bump | null>(null)
+  const [answers, setAnswers] = useState<Answers>({})
   const [changelog, setChangelog] = useState<string | null>(null)
   const [error, setError] = useState<string>('')
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([])
@@ -46,9 +57,10 @@ export function App() {
   const cwd = process.cwd()
 
   const handleDetected = useCallback(
-    (proj: ProjectInfo, conf: ReleaseConfig) => {
+    (proj: ProjectInfo, detectedEnv: DetectedEnv, config: ParsedProjectConfig) => {
       setProject(proj)
-      setConfig(conf)
+      setEnv(detectedEnv)
+      setProjectConfig(config)
       setPhase('version')
     },
     [],
@@ -67,46 +79,53 @@ export function App() {
     (selectedBump: Bump) => {
       setBump(selectedBump)
 
-      if (config.ai?.changelog) {
-        setPhase('ai')
+      // If project config produced dynamic options, show them
+      if (projectConfig.options.length > 0) {
+        setPhase('options')
       } else {
-        // Skip AI, go to confirm
-        const newVersion = bumpVersion(project!.version, selectedBump)
-        const releaseCtx: ReleaseContext = {
-          project: project!,
-          bump: selectedBump,
-          newVersion,
-          tag: `v${newVersion}`,
-          config,
-          changelog: undefined,
-        }
-        const steps = getPipelineSteps(releaseCtx)
-        setPipelineSteps(steps)
-        setCtx(releaseCtx)
-        setPhase('confirm')
+        // No options needed (npm, etc.) — go straight to AI
+        setPhase('ai')
       }
     },
-    [project, config],
+    [projectConfig],
   )
 
-  const handleAIResult = useCallback(
-    (generatedChangelog: string | null) => {
-      setChangelog(generatedChangelog)
+  const handleOptionsComplete = useCallback(
+    (selectedAnswers: Answers) => {
+      setAnswers(selectedAnswers)
+      setPhase('ai')
+    },
+    [],
+  )
+
+  // Build release context and advance to confirm
+  const buildContextAndConfirm = useCallback(
+    (finalChangelog: string | null, finalAnswers: Answers) => {
+      setChangelog(finalChangelog)
       const newVersion = bumpVersion(project!.version, bump!)
       const releaseCtx: ReleaseContext = {
         project: project!,
         bump: bump!,
         newVersion,
         tag: `v${newVersion}`,
-        config,
-        changelog: generatedChangelog || undefined,
+        env,
+        answers: finalAnswers,
+        projectConfig,
+        changelog: finalChangelog || undefined,
       }
       const steps = getPipelineSteps(releaseCtx)
       setPipelineSteps(steps)
       setCtx(releaseCtx)
       setPhase('confirm')
     },
-    [project, bump, config],
+    [project, bump, env, projectConfig],
+  )
+
+  const handleAIResult = useCallback(
+    (generatedChangelog: string | null) => {
+      buildContextAndConfirm(generatedChangelog, answers)
+    },
+    [answers, buildContextAndConfirm],
   )
 
   const handleAISkip = useCallback(() => {
@@ -182,9 +201,13 @@ export function App() {
         {phase === 'version' && project && (
           <VersionSelect project={project} onSelect={handleVersionSelect} />
         )}
-        {phase === 'ai' && (
-          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} />
+        {phase === 'options' && projectConfig.options.length > 0 && (
+          <DynamicOptions
+            options={projectConfig.options}
+            onComplete={handleOptionsComplete}
+          />
         )}
+        {phase === 'ai' && <AIPhase onResult={handleAIResult} onSkip={handleAISkip} />}
         {phase === 'confirm' && ctx && (
           <ConfirmPhase
             ctx={ctx}

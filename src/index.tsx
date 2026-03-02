@@ -15,34 +15,31 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`
   ⚡ Releaser v0.1.0
 
-  Smart release CLI for npm, Expo, Tauri, and macOS projects.
+  Zero-config release CLI. Reads your project files and figures out the rest.
 
   Usage:
     releaser              Interactive release flow
     releaser --version    Show version
     releaser --help       Show this help
 
-  Configuration:
-    Create a releaser.config.ts in your project root:
-
-    export default {
-      npm: { publish: true, access: 'public' },
-      github: { release: true },
-      ai: { changelog: true },
-      hooks: {
-        beforeRelease: 'bun run build && bun test',
-      },
-    }
+  How it works:
+    1. Detects your project type from the files in your directory
+    2. Reads config files (eas.json, tauri.conf.json, etc.) to build options
+    3. Walks you through an interactive release flow
+    4. Bumps versions, commits, tags, pushes, publishes
 
   Supported project types:
-    • npm packages     Detected via package.json
-    • Expo apps        Detected via expo dependency + app.config.ts
-    • Tauri apps       Detected via src-tauri/ directory
-    • macOS apps       Detected via .xcodeproj/.xcworkspace
+    npm packages     package.json
+    Expo apps        expo in dependencies + eas.json → dynamic profiles
+    Tauri apps       src-tauri/ + tauri.conf.json + Cargo.toml
+    macOS apps       .xcodeproj / .xcworkspace → auto-detect schemes
 
-  AI Features (optional):
-    When @anthropic-ai/claude-code is installed, releaser can
-    generate changelogs from commit history using Claude.
+  Auto-detected behavior:
+    build script     Runs "bun run build" if package.json has a build script
+    test script      Runs "bun run test" if package.json has a test script
+    gh CLI           Creates GitHub release if gh is installed
+    EAS profiles     Shows build profiles from eas.json
+    private: true    Skips npm publish for private packages
 `)
   process.exit(0)
 }

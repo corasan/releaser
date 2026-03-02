@@ -12,12 +12,22 @@ import type { PipelineStep, ReleaseContext } from '../types.js'
 export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
   const steps: PipelineStep[] = []
 
-  if (ctx.config.hooks?.beforeRelease) {
+  if (ctx.env.hasBuildScript) {
     steps.push({
-      id: 'pre-hook',
-      label: 'Run pre-release hook',
+      id: 'build',
+      label: 'Run build',
       execute: async ctx => {
-        await $`sh -c ${ctx.config.hooks!.beforeRelease!}`.cwd(ctx.project.path)
+        await $`bun run build`.cwd(ctx.project.path)
+      },
+    })
+  }
+
+  if (ctx.env.hasTestScript) {
+    steps.push({
+      id: 'test',
+      label: 'Run tests',
+      execute: async ctx => {
+        await $`bun run test`.cwd(ctx.project.path)
       },
     })
   }
@@ -40,8 +50,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       if (!ctx.changelog) return
       const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
       const date = new Date().toISOString().split('T')[0]
-      const header = `## ${ctx.newVersion} (${date})\n\n`
-      const entry = header + ctx.changelog + '\n\n'
+      const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
 
       if (existsSync(changelogPath)) {
         const existing = await Bun.file(changelogPath).text()
@@ -58,13 +67,9 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     label: 'Commit and create tag',
     execute: async ctx => {
       const files = ['package.json']
-      const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
-      if (existsSync(changelogPath)) files.push('CHANGELOG.md')
-
-      // Also check for package-lock.json
-      const lockPath = join(ctx.project.path, 'package-lock.json')
-      if (existsSync(lockPath)) files.push('package-lock.json')
-
+      if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) files.push('CHANGELOG.md')
+      if (existsSync(join(ctx.project.path, 'package-lock.json')))
+        files.push('package-lock.json')
       await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
     },
   })
@@ -78,41 +83,22 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     },
   })
 
-  if (ctx.config.npm?.publish !== false && !ctx.project.npm?.private) {
+  if (!ctx.project.npm?.private) {
     steps.push({
       id: 'npm-publish',
       label: 'Publish to npm',
       execute: async ctx => {
-        const args = []
-        if (ctx.config.npm?.access) args.push('--access', ctx.config.npm.access)
-        if (ctx.config.npm?.registry)
-          args.push('--registry', ctx.config.npm.registry)
-        await $`npm publish ${args}`.cwd(ctx.project.path)
+        await $`npm publish`.cwd(ctx.project.path)
       },
     })
   }
 
-  if (ctx.config.github?.release !== false) {
+  if (ctx.env.hasGhCli) {
     steps.push({
       id: 'github-release',
       label: 'Create GitHub release',
       execute: async ctx => {
-        await createGitHubRelease(
-          ctx.tag,
-          ctx.config.github?.generateNotes
-            ? undefined
-            : ctx.changelog || undefined,
-        )
-      },
-    })
-  }
-
-  if (ctx.config.hooks?.afterRelease) {
-    steps.push({
-      id: 'post-hook',
-      label: 'Run post-release hook',
-      execute: async ctx => {
-        await $`sh -c ${ctx.config.hooks!.afterRelease!}`.cwd(ctx.project.path)
+        await createGitHubRelease(ctx.tag, ctx.changelog)
       },
     })
   }

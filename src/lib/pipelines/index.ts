@@ -1,11 +1,11 @@
-import type { PipelineStep, ProjectType, ReleaseContext } from '../types.js'
+import type { PipelineStep, ReleaseContext } from '../types.js'
 import { getExpoSteps } from './expo.js'
 import { getMacosSteps } from './macos.js'
 import { getNpmSteps } from './npm.js'
 import { getTauriSteps } from './tauri.js'
 
 export function getPipelineSteps(ctx: ReleaseContext): PipelineStep[] {
-  const type = ctx.config.type || ctx.project.type
+  const type = ctx.project.type
 
   switch (type) {
     case 'npm':
@@ -17,7 +17,6 @@ export function getPipelineSteps(ctx: ReleaseContext): PipelineStep[] {
     case 'macos':
       return getMacosSteps(ctx)
     default:
-      // Fallback to npm-like pipeline for unknown projects
       return getNpmSteps(ctx)
   }
 }
