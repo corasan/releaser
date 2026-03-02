@@ -10,6 +10,7 @@
     "dev": "bun run src/index.tsx",
     "build": "bun build src/index.tsx --outdir dist --target bun",
     "compile": "bun build src/index.tsx --compile --outfile releaser",
+    "install-local": "bun run compile && mv releaser /usr/local/bin/releaser",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
