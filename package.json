@@ -1,6 +1,6 @@
 {
   "name": "releaser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Smart release CLI for npm packages, Expo apps, Tauri apps, and macOS apps",
   "type": "module",
   "bin": {
@@ -23,6 +23,13 @@
     "@types/react": "^18.3.12",
     "typescript": "^5.7.0"
   },
-  "keywords": ["release", "cli", "npm", "expo", "tauri", "macos"],
+  "keywords": [
+    "release",
+    "cli",
+    "npm",
+    "expo",
+    "tauri",
+    "macos"
+  ],
   "license": "MIT"
 }
