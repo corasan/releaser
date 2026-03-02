@@ -2,7 +2,9 @@ import { $ } from 'bun'
 
 export async function getCommitsSinceLastTag(): Promise<string[]> {
   try {
-    const lastTag = (await $`git describe --tags --abbrev=0 2>/dev/null`.text()).trim()
+    const lastTag = (
+      await $`git describe --tags --abbrev=0 2>/dev/null`.text()
+    ).trim()
     if (!lastTag) throw new Error('No tags')
     const log = await $`git log ${lastTag}..HEAD --oneline`.text()
     return log.trim().split('\n').filter(Boolean)

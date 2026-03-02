@@ -57,7 +57,7 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
   try {
     const files = await readdir(cwd)
     const xcodeProject = files.find(
-      (f) => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace'),
+      f => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace'),
     )
     if (xcodeProject) {
       return {

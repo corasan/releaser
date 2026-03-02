@@ -1,8 +1,13 @@
 import { $ } from 'bun'
 import { existsSync } from 'fs'
 import { join } from 'path'
+import {
+  commitRelease,
+  createGitHubRelease,
+  getCurrentBranch,
+  pushWithTags,
+} from '../git.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
-import { commitRelease, createGitHubRelease, pushWithTags, getCurrentBranch } from '../git.js'
 
 export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
   const steps: PipelineStep[] = []
@@ -11,7 +16,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     steps.push({
       id: 'pre-hook',
       label: 'Run pre-release hook',
-      execute: async (ctx) => {
+      execute: async ctx => {
         await $`sh -c ${ctx.config.hooks!.beforeRelease!}`.cwd(ctx.project.path)
       },
     })
@@ -20,7 +25,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
   steps.push({
     id: 'bump-pkg',
     label: 'Bump version in package.json',
-    execute: async (ctx) => {
+    execute: async ctx => {
       const pkgPath = join(ctx.project.path, 'package.json')
       const pkg = await Bun.file(pkgPath).json()
       pkg.version = ctx.newVersion
@@ -31,7 +36,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
   steps.push({
     id: 'bump-tauri',
     label: 'Bump version in Tauri config',
-    execute: async (ctx) => {
+    execute: async ctx => {
       const configPath = ctx.project.tauri?.configPath
       if (!configPath || !existsSync(configPath)) return
 
@@ -62,7 +67,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
   steps.push({
     id: 'changelog',
     label: 'Update CHANGELOG.md',
-    execute: async (ctx) => {
+    execute: async ctx => {
       if (!ctx.changelog) return
       const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
       const date = new Date().toISOString().split('T')[0]
@@ -76,13 +81,13 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
         await Bun.write(changelogPath, `# Changelog\n\n${entry}`)
       }
     },
-    skip: (ctx) => !ctx.changelog,
+    skip: ctx => !ctx.changelog,
   })
 
   steps.push({
     id: 'commit-tag',
     label: 'Commit and create tag',
-    execute: async (ctx) => {
+    execute: async ctx => {
       const files = ['package.json']
       const tauriConf = ctx.project.tauri?.configPath
       if (tauriConf && existsSync(tauriConf)) {
@@ -110,7 +115,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     steps.push({
       id: 'tauri-build',
       label: 'Build Tauri app',
-      execute: async (ctx) => {
+      execute: async ctx => {
         await $`bunx tauri build`.cwd(ctx.project.path)
       },
     })
@@ -120,10 +125,12 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     steps.push({
       id: 'github-release',
       label: 'Create GitHub release',
-      execute: async (ctx) => {
+      execute: async ctx => {
         await createGitHubRelease(
           ctx.tag,
-          ctx.config.github?.generateNotes ? undefined : ctx.changelog || undefined,
+          ctx.config.github?.generateNotes
+            ? undefined
+            : ctx.changelog || undefined,
         )
       },
     })
@@ -133,7 +140,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     steps.push({
       id: 'post-hook',
       label: 'Run post-release hook',
-      execute: async (ctx) => {
+      execute: async ctx => {
         await $`sh -c ${ctx.config.hooks!.afterRelease!}`.cwd(ctx.project.path)
       },
     })

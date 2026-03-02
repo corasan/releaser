@@ -1,7 +1,7 @@
-import React from 'react'
 import { Box, Text } from 'ink'
-import type { ReleaseContext } from '../lib/types.js'
+import React from 'react'
 import { getProjectTypeLabel } from '../lib/detect.js'
+import type { ReleaseContext } from '../lib/types.js'
 
 interface DonePhaseProps {
   ctx: ReleaseContext

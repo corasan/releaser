@@ -1,8 +1,8 @@
-import React, { useEffect, useReducer } from 'react'
 import { Box, Text } from 'ink'
-import { StepList } from './step-list.js'
+import React, { useEffect, useReducer } from 'react'
 import { executePipeline } from '../lib/pipelines/index.js'
 import type { PipelineStep, ReleaseContext, StepStatus } from '../lib/types.js'
+import { StepList } from './step-list.js'
 
 interface ReleasePhaseProps {
   ctx: ReleaseContext
@@ -25,7 +25,7 @@ type StepAction =
   | { type: 'skipped'; id: string }
 
 function stepsReducer(state: StepState[], action: StepAction): StepState[] {
-  return state.map((step) => {
+  return state.map(step => {
     if (step.id !== action.id) return step
     switch (action.type) {
       case 'start':
@@ -42,8 +42,13 @@ function stepsReducer(state: StepState[], action: StepAction): StepState[] {
   })
 }
 
-export function ReleasePhase({ ctx, pipelineSteps, onDone, onError }: ReleasePhaseProps) {
-  const initialSteps: StepState[] = pipelineSteps.map((s) => ({
+export function ReleasePhase({
+  ctx,
+  pipelineSteps,
+  onDone,
+  onError,
+}: ReleasePhaseProps) {
+  const initialSteps: StepState[] = pipelineSteps.map(s => ({
     id: s.id,
     label: s.label,
     status: 'pending' as StepStatus,
@@ -55,11 +60,11 @@ export function ReleasePhase({ ctx, pipelineSteps, onDone, onError }: ReleasePha
     executePipeline(
       pipelineSteps,
       ctx,
-      (id) => dispatch({ type: 'start', id }),
-      (id) => dispatch({ type: 'done', id }),
+      id => dispatch({ type: 'start', id }),
+      id => dispatch({ type: 'done', id }),
       (id, error) => dispatch({ type: 'error', id, error }),
-      (id) => dispatch({ type: 'skipped', id }),
-    ).then((result) => {
+      id => dispatch({ type: 'skipped', id }),
+    ).then(result => {
       if (result.success) {
         // Small delay to show the final checkmark
         setTimeout(onDone, 300)

@@ -9,7 +9,14 @@
   "scripts": {
     "dev": "bun run src/index.tsx",
     "build": "bun build src/index.tsx --outdir dist --target bun",
-    "compile": "bun build src/index.tsx --compile --outfile releaser"
+    "compile": "bun build src/index.tsx --compile --outfile releaser",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format .",
+    "format:write": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
   },
   "dependencies": {
     "ink": "^5.1.0",
@@ -19,6 +26,7 @@
     "@anthropic-ai/claude-code": "^0.2.26"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.4",
     "@types/bun": "latest",
     "@types/react": "^18.3.12",
     "typescript": "^5.7.0"

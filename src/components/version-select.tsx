@@ -1,8 +1,8 @@
-import React from 'react'
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
-import { previewVersions } from '../lib/version.js'
+import React from 'react'
 import type { Bump, ProjectInfo } from '../lib/types.js'
+import { previewVersions } from '../lib/version.js'
 
 interface VersionSelectProps {
   project: ProjectInfo
@@ -13,7 +13,9 @@ interface VersionSelectProps {
 function Indicator({ isSelected }: { isSelected?: boolean }) {
   return (
     <Box marginRight={1}>
-      <Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '▸' : ' '}</Text>
+      <Text color={isSelected ? 'cyan' : undefined}>
+        {isSelected ? '▸' : ' '}
+      </Text>
     </Box>
   )
 }
@@ -32,10 +34,14 @@ function VersionItem({
   )
 }
 
-export function VersionSelect({ project, aiSuggestion, onSelect }: VersionSelectProps) {
+export function VersionSelect({
+  project,
+  aiSuggestion,
+  onSelect,
+}: VersionSelectProps) {
   const versions = previewVersions(project.version)
 
-  const items = (['patch', 'minor', 'major'] as const).map((bump) => ({
+  const items = (['patch', 'minor', 'major'] as const).map(bump => ({
     key: bump,
     label: `${bump.padEnd(6)} ${project.version} → ${versions[bump]}`,
     value: bump,
@@ -60,7 +66,7 @@ export function VersionSelect({ project, aiSuggestion, onSelect }: VersionSelect
       </Box>
       <SelectInput
         items={items}
-        onSelect={(item) => onSelect(item.value as Bump)}
+        onSelect={item => onSelect(item.value as Bump)}
         indicatorComponent={Indicator}
         itemComponent={VersionItem}
       />

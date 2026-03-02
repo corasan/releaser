@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
 import { Box, Text } from 'ink'
 import Spinner from 'ink-spinner'
-import { detectProject, getProjectTypeLabel } from '../lib/detect.js'
+import React, { useEffect, useState } from 'react'
 import { loadConfig } from '../lib/config.js'
+import { detectProject, getProjectTypeLabel } from '../lib/detect.js'
 import { hasUncommittedChanges, isGitRepo } from '../lib/git.js'
 import type { ProjectInfo, ReleaseConfig } from '../lib/types.js'
 
@@ -30,7 +30,9 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
       // Check for uncommitted changes
       const dirty = await hasUncommittedChanges()
       if (dirty) {
-        onError('You have uncommitted changes. Please commit or stash them before releasing.')
+        onError(
+          'You have uncommitted changes. Please commit or stash them before releasing.',
+        )
         return
       }
 
@@ -53,7 +55,7 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
       setTimeout(() => onDetected(project, config), 500)
     }
 
-    detect().catch((err) => {
+    detect().catch(err => {
       onError(err instanceof Error ? err.message : String(err))
     })
   }, [cwd])

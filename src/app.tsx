@@ -1,17 +1,35 @@
-import React, { useState, useCallback } from 'react'
 import { Box, Text, useApp } from 'ink'
-import { Header } from './components/header.js'
-import { DetectPhase, DetectedBadge } from './components/detect-phase.js'
-import { VersionSelect } from './components/version-select.js'
+import React, { useCallback, useState } from 'react'
 import { AIPhase } from './components/ai-phase.js'
 import { ConfirmPhase } from './components/confirm-phase.js'
+import { DetectedBadge, DetectPhase } from './components/detect-phase.js'
+import {
+  CancelledPhase,
+  DonePhase,
+  ErrorPhase,
+} from './components/done-phase.js'
+import { Header } from './components/header.js'
 import { ReleasePhase } from './components/release-phase.js'
-import { DonePhase, ErrorPhase, CancelledPhase } from './components/done-phase.js'
-import { bumpVersion } from './lib/version.js'
+import { VersionSelect } from './components/version-select.js'
 import { getPipelineSteps } from './lib/pipelines/index.js'
-import type { Bump, PipelineStep, ProjectInfo, ReleaseConfig, ReleaseContext } from './lib/types.js'
+import type {
+  Bump,
+  PipelineStep,
+  ProjectInfo,
+  ReleaseConfig,
+  ReleaseContext,
+} from './lib/types.js'
+import { bumpVersion } from './lib/version.js'
 
-type Phase = 'detect' | 'version' | 'ai' | 'confirm' | 'release' | 'done' | 'error' | 'cancelled'
+type Phase =
+  | 'detect'
+  | 'version'
+  | 'ai'
+  | 'confirm'
+  | 'release'
+  | 'done'
+  | 'error'
+  | 'cancelled'
 
 export function App() {
   const { exit } = useApp()
@@ -27,11 +45,14 @@ export function App() {
 
   const cwd = process.cwd()
 
-  const handleDetected = useCallback((proj: ProjectInfo, conf: ReleaseConfig) => {
-    setProject(proj)
-    setConfig(conf)
-    setPhase('version')
-  }, [])
+  const handleDetected = useCallback(
+    (proj: ProjectInfo, conf: ReleaseConfig) => {
+      setProject(proj)
+      setConfig(conf)
+      setPhase('version')
+    },
+    [],
+  )
 
   const handleDetectError = useCallback(
     (msg: string) => {
@@ -159,10 +180,7 @@ export function App() {
           />
         )}
         {phase === 'version' && project && (
-          <VersionSelect
-            project={project}
-            onSelect={handleVersionSelect}
-          />
+          <VersionSelect project={project} onSelect={handleVersionSelect} />
         )}
         {phase === 'ai' && (
           <AIPhase onResult={handleAIResult} onSkip={handleAISkip} />

@@ -1,8 +1,8 @@
-import React from 'react'
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
-import type { PipelineStep, ReleaseContext } from '../lib/types.js'
+import React from 'react'
 import { getProjectTypeLabel } from '../lib/detect.js'
+import type { PipelineStep, ReleaseContext } from '../lib/types.js'
 
 interface ConfirmPhaseProps {
   ctx: ReleaseContext
@@ -14,7 +14,9 @@ interface ConfirmPhaseProps {
 function Indicator({ isSelected }: { isSelected?: boolean }) {
   return (
     <Box marginRight={1}>
-      <Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '▸' : ' '}</Text>
+      <Text color={isSelected ? 'cyan' : undefined}>
+        {isSelected ? '▸' : ' '}
+      </Text>
     </Box>
   )
 }
@@ -27,13 +29,21 @@ function ConfirmItem({
   label: string
 }) {
   return (
-    <Text color={isSelected ? (label.startsWith('Yes') ? 'green' : 'red') : 'white'} bold={isSelected}>
+    <Text
+      color={isSelected ? (label.startsWith('Yes') ? 'green' : 'red') : 'white'}
+      bold={isSelected}
+    >
       {label}
     </Text>
   )
 }
 
-export function ConfirmPhase({ ctx, steps, onConfirm, onCancel }: ConfirmPhaseProps) {
+export function ConfirmPhase({
+  ctx,
+  steps,
+  onConfirm,
+  onCancel,
+}: ConfirmPhaseProps) {
   const items = [
     { key: 'yes', label: 'Yes, release!', value: true },
     { key: 'no', label: 'No, cancel', value: false },
@@ -84,12 +94,10 @@ export function ConfirmPhase({ ctx, steps, onConfirm, onCancel }: ConfirmPhasePr
             Steps:
           </Text>
           {steps
-            .filter((s) => !s.skip?.(ctx))
+            .filter(s => !s.skip?.(ctx))
             .map((step, i) => (
               <Box key={step.id} gap={1} marginLeft={1}>
-                <Text dimColor>
-                  {i + 1}.
-                </Text>
+                <Text dimColor>{i + 1}.</Text>
                 <Text>{step.label}</Text>
               </Box>
             ))}
@@ -98,13 +106,12 @@ export function ConfirmPhase({ ctx, steps, onConfirm, onCancel }: ConfirmPhasePr
 
       <Box marginBottom={1}>
         <Text bold>
-          Confirm release{' '}
-          <Text color="green">{ctx.tag}</Text>?
+          Confirm release <Text color="green">{ctx.tag}</Text>?
         </Text>
       </Box>
       <SelectInput
         items={items}
-        onSelect={(item) => {
+        onSelect={item => {
           if (item.value) onConfirm()
           else onCancel()
         }}

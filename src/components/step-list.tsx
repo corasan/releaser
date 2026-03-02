@@ -1,6 +1,6 @@
-import React from 'react'
 import { Box, Text } from 'ink'
 import Spinner from 'ink-spinner'
+import React from 'react'
 import type { StepStatus } from '../lib/types.js'
 
 interface StepItem {
@@ -43,7 +43,13 @@ function StepRow({ step }: { step: StepItem }) {
         <StatusIcon status={step.status} />
         <Text
           dimColor={dimmed}
-          color={step.status === 'error' ? 'red' : step.status === 'running' ? 'cyan' : undefined}
+          color={
+            step.status === 'error'
+              ? 'red'
+              : step.status === 'running'
+                ? 'cyan'
+                : undefined
+          }
           bold={step.status === 'running'}
         >
           {step.label}
@@ -72,7 +78,7 @@ export function StepList({ steps, title }: StepListProps) {
         </Box>
       )}
       <Box flexDirection="column" marginLeft={1}>
-        {steps.map((step) => (
+        {steps.map(step => (
           <StepRow key={step.id} step={step} />
         ))}
       </Box>

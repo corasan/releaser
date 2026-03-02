@@ -12,9 +12,7 @@ export function bumpVersion(current: string, bump: Bump): string {
   }
 }
 
-export function previewVersions(
-  current: string,
-): Record<Bump, string> {
+export function previewVersions(current: string): Record<Bump, string> {
   return {
     patch: bumpVersion(current, 'patch'),
     minor: bumpVersion(current, 'minor'),

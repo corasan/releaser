@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
 import Spinner from 'ink-spinner'
+import React, { useEffect, useState } from 'react'
 import { generateChangelogWithAI, isAIAvailable } from '../lib/ai.js'
 import { getCommitsSinceLastTag } from '../lib/git.js'
 
@@ -13,7 +13,9 @@ interface AIPhaseProps {
 function Indicator({ isSelected }: { isSelected?: boolean }) {
   return (
     <Box marginRight={1}>
-      <Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '▸' : ' '}</Text>
+      <Text color={isSelected ? 'cyan' : undefined}>
+        {isSelected ? '▸' : ' '}
+      </Text>
     </Box>
   )
 }
@@ -27,7 +29,9 @@ function Item({ isSelected, label }: { isSelected?: boolean; label: string }) {
 }
 
 export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
-  const [state, setState] = useState<'checking' | 'ask' | 'generating' | 'unavailable'>('checking')
+  const [state, setState] = useState<
+    'checking' | 'ask' | 'generating' | 'unavailable'
+  >('checking')
   const [commits, setCommits] = useState<string[]>([])
 
   useEffect(() => {
@@ -89,7 +93,11 @@ export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
 
   // state === 'ask'
   const items = [
-    { key: 'yes', label: `Yes, generate from ${commits.length} commits`, value: true },
+    {
+      key: 'yes',
+      label: `Yes, generate from ${commits.length} commits`,
+      value: true,
+    },
     { key: 'no', label: 'No, skip changelog', value: false },
   ]
 
@@ -100,10 +108,10 @@ export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
       </Box>
       <SelectInput
         items={items}
-        onSelect={(item) => {
+        onSelect={item => {
           if (item.value) {
             setState('generating')
-            generateChangelogWithAI(commits).then((changelog) => {
+            generateChangelogWithAI(commits).then(changelog => {
               onResult(changelog)
             })
           } else {
