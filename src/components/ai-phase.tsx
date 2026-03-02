@@ -1,7 +1,7 @@
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
 import Spinner from 'ink-spinner'
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { generateChangelogWithAI, isAIAvailable } from '../lib/ai.js'
 import { getCommitsSinceLastTag } from '../lib/git.js'
 
@@ -53,7 +53,7 @@ export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
     }
 
     check()
-  }, [])
+  }, [onSkip])
 
   if (state === 'checking') {
     return (

@@ -1,6 +1,5 @@
 import { Box, Text } from 'ink'
 import Spinner from 'ink-spinner'
-import React from 'react'
 import type { StepStatus } from '../lib/types.js'
 
 interface StepItem {
@@ -29,7 +28,6 @@ function StatusIcon({ status }: { status: StepStatus }) {
       return <Text color="red">✖</Text>
     case 'skipped':
       return <Text dimColor>⊘</Text>
-    case 'pending':
     default:
       return <Text dimColor>○</Text>
   }

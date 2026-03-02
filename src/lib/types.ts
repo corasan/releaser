@@ -43,6 +43,7 @@ export interface ParsedProjectConfig {
   /** Dynamic UI options generated from project config files */
   options: UIOption[]
   /** Structured data from config files, used by pipelines */
+  // biome-ignore lint/suspicious/noExplicitAny: dynamic config data from JSON files
   data: Record<string, any>
 }
 

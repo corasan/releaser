@@ -1,6 +1,5 @@
+import { join } from 'node:path'
 import { $ } from 'bun'
-import { existsSync } from 'fs'
-import { join } from 'path'
 import {
   commitRelease,
   createGitHubRelease,
@@ -40,7 +39,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       const pkgPath = join(ctx.project.path, 'package.json')
       const pkg = await Bun.file(pkgPath).json()
       pkg.version = ctx.newVersion
-      await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
     },
   })
 
@@ -49,7 +48,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     label: 'Bump version in Tauri config',
     execute: async ctx => {
       const configPath = ctx.project.tauri?.configPath
-      if (!configPath || !existsSync(configPath)) return
+      if (!configPath || !(await Bun.file(configPath).exists())) return
 
       if (configPath.endsWith('.json')) {
         const config = await Bun.file(configPath).json()
@@ -58,11 +57,11 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
         } else {
           config.version = ctx.newVersion
         }
-        await Bun.write(configPath, JSON.stringify(config, null, 2) + '\n')
+        await Bun.write(configPath, `${JSON.stringify(config, null, 2)}\n`)
       }
 
       const cargoPath = join(ctx.project.path, 'src-tauri', 'Cargo.toml')
-      if (existsSync(cargoPath)) {
+      if (await Bun.file(cargoPath).exists()) {
         let cargo = await Bun.file(cargoPath).text()
         cargo = cargo.replace(
           /^version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"/m,
@@ -82,7 +81,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       const date = new Date().toISOString().split('T')[0]
       const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
 
-      if (existsSync(changelogPath)) {
+      if (await Bun.file(changelogPath).exists()) {
         const existing = await Bun.file(changelogPath).text()
         await Bun.write(changelogPath, entry + existing)
       } else {
@@ -98,10 +97,12 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     execute: async ctx => {
       const files = ['package.json']
       const tauriConf = ctx.project.tauri?.configPath
-      if (tauriConf && existsSync(tauriConf)) files.push(tauriConf)
+      if (tauriConf && (await Bun.file(tauriConf).exists()))
+        files.push(tauriConf)
       const cargoPath = join(ctx.project.path, 'src-tauri', 'Cargo.toml')
-      if (existsSync(cargoPath)) files.push('src-tauri/Cargo.toml')
-      if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) files.push('CHANGELOG.md')
+      if (await Bun.file(cargoPath).exists()) files.push('src-tauri/Cargo.toml')
+      if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists())
+        files.push('CHANGELOG.md')
       await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
     },
   })

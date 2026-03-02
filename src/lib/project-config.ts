@@ -1,5 +1,4 @@
-import { existsSync } from 'fs'
-import { join } from 'path'
+import { join } from 'node:path'
 import type { ParsedProjectConfig, ProjectInfo, UIOption } from './types.js'
 
 /**
@@ -9,7 +8,9 @@ import type { ParsedProjectConfig, ProjectInfo, UIOption } from './types.js'
  *
  * This is the "server-driven UI" layer — the project configs ARE the UI configs.
  */
-export async function readProjectConfig(project: ProjectInfo): Promise<ParsedProjectConfig> {
+export async function readProjectConfig(
+  project: ProjectInfo,
+): Promise<ParsedProjectConfig> {
   switch (project.type) {
     case 'expo':
       return readExpoConfig(project)
@@ -26,15 +27,18 @@ export async function readProjectConfig(project: ProjectInfo): Promise<ParsedPro
 
 // ─── Expo ────────────────────────────────────────────────────────
 
-async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig> {
+async function readExpoConfig(
+  project: ProjectInfo,
+): Promise<ParsedProjectConfig> {
   const options: UIOption[] = []
+  // biome-ignore lint/suspicious/noExplicitAny: dynamic config data from JSON files
   const data: Record<string, any> = {}
 
   // Parse app config for platform info
   const appConfig = project.expo?.appConfig || 'app.json'
   const appConfigPath = join(project.path, appConfig)
 
-  if (existsSync(appConfigPath) && appConfig === 'app.json') {
+  if ((await Bun.file(appConfigPath).exists()) && appConfig === 'app.json') {
     try {
       const json = await Bun.file(appConfigPath).json()
       const expo = json.expo || json
@@ -48,14 +52,18 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
     } catch {
       // Failed to parse, continue with defaults
     }
-  } else if (existsSync(appConfigPath)) {
+  } else if (await Bun.file(appConfigPath).exists()) {
     // For .ts/.js configs, try to extract info via regex
     try {
       const content = await Bun.file(appConfigPath).text()
       data.hasIos = /ios\s*[:=]\s*\{/.test(content)
       data.hasAndroid = /android\s*[:=]\s*\{/.test(content)
-      data.iosBundleId = content.match(/bundleIdentifier\s*[:=]\s*['"]([^'"]+)['"]/)?.[1]
-      data.androidPackage = content.match(/package\s*[:=]\s*['"]([^'"]+)['"]/)?.[1]
+      data.iosBundleId = content.match(
+        /bundleIdentifier\s*[:=]\s*['"]([^'"]+)['"]/,
+      )?.[1]
+      data.androidPackage = content.match(
+        /package\s*[:=]\s*['"]([^'"]+)['"]/,
+      )?.[1]
     } catch {
       data.hasIos = true
       data.hasAndroid = true
@@ -65,7 +73,7 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
   // Parse eas.json — this is the main source of dynamic options
   const easPath = join(project.path, 'eas.json')
 
-  if (existsSync(easPath)) {
+  if (await Bun.file(easPath).exists()) {
     try {
       const eas = await Bun.file(easPath).json()
       data.eas = eas
@@ -89,8 +97,16 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
         label: 'Release type',
         type: 'select',
         items: [
-          { label: 'Full release', value: 'full', hint: 'EAS Build + optional store submit' },
-          { label: 'OTA update', value: 'ota', hint: 'EAS Update (JS-only, no native rebuild)' },
+          {
+            label: 'Full release',
+            value: 'full',
+            hint: 'EAS Build + optional store submit',
+          },
+          {
+            label: 'OTA update',
+            value: 'ota',
+            hint: 'EAS Update (JS-only, no native rebuild)',
+          },
         ],
       })
 
@@ -99,12 +115,15 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
           id: 'profile',
           label: 'Build profile',
           type: 'select',
-          items: buildProfiles.map((name) => {
+          items: buildProfiles.map(name => {
             const config = eas.build[name]
             const hints: string[] = []
             if (config.developmentClient) hints.push('dev client')
             if (config.distribution === 'internal') hints.push('internal')
-            if (config.distribution === 'store' || (!config.distribution && name === 'production'))
+            if (
+              config.distribution === 'store' ||
+              (!config.distribution && name === 'production')
+            )
               hints.push('store')
             if (config.channel) hints.push(`channel: ${config.channel}`)
             if (config.autoSubmit) hints.push('auto-submit')
@@ -115,7 +134,7 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
               hint: hints.length ? hints.join(', ') : undefined,
             }
           }),
-          when: (answers) => answers.releaseType !== 'ota',
+          when: answers => answers.releaseType !== 'ota',
         })
       } else if (buildProfiles.length === 1) {
         data.defaultProfile = buildProfiles[0]
@@ -127,8 +146,8 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
           id: 'channel',
           label: 'Update channel',
           type: 'select',
-          items: updateChannels.map((ch) => ({ label: ch, value: ch })),
-          when: (answers) => answers.releaseType === 'ota',
+          items: updateChannels.map(ch => ({ label: ch, value: ch })),
+          when: answers => answers.releaseType === 'ota',
         })
       }
 
@@ -161,7 +180,13 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
         ? [{ label: 'iOS only', value: 'ios', hint: data.iosBundleId }]
         : []),
       ...(data.hasAndroid !== false
-        ? [{ label: 'Android only', value: 'android', hint: data.androidPackage }]
+        ? [
+            {
+              label: 'Android only',
+              value: 'android',
+              hint: data.androidPackage,
+            },
+          ]
         : []),
     ]
 
@@ -171,7 +196,7 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
         label: 'Platform',
         type: 'select',
         items: platformItems,
-        when: (answers) => answers.releaseType !== 'ota',
+        when: answers => answers.releaseType !== 'ota',
       })
     }
   } else if (data.hasIos) {
@@ -198,7 +223,7 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
         { label: 'No, just build', value: 'no' },
       ],
       // Only show submit if selected profile has submit config and it's a full release
-      when: (answers) => {
+      when: answers => {
         if (answers.releaseType === 'ota') return false
         if (!data.eas?.submit) return false
         const profile = answers.profile || data.defaultProfile || 'production'
@@ -212,12 +237,19 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
 
 // ─── Tauri ───────────────────────────────────────────────────────
 
-async function readTauriConfig(project: ProjectInfo): Promise<ParsedProjectConfig> {
+async function readTauriConfig(
+  project: ProjectInfo,
+): Promise<ParsedProjectConfig> {
   const options: UIOption[] = []
+  // biome-ignore lint/suspicious/noExplicitAny: dynamic config data from JSON files
   const data: Record<string, any> = {}
 
   const configPath = project.tauri?.configPath
-  if (configPath && existsSync(configPath) && configPath.endsWith('.json')) {
+  if (
+    configPath &&
+    (await Bun.file(configPath).exists()) &&
+    configPath.endsWith('.json')
+  ) {
     try {
       const config = await Bun.file(configPath).json()
       data.tauriConfig = config
@@ -227,7 +259,9 @@ async function readTauriConfig(project: ProjectInfo): Promise<ParsedProjectConfi
       // Extract build targets
       const bundle = config.tauri?.bundle || config.bundle
       if (bundle?.targets) {
-        data.targets = Array.isArray(bundle.targets) ? bundle.targets : [bundle.targets]
+        data.targets = Array.isArray(bundle.targets)
+          ? bundle.targets
+          : [bundle.targets]
       }
     } catch {
       // Failed to parse
@@ -236,7 +270,7 @@ async function readTauriConfig(project: ProjectInfo): Promise<ParsedProjectConfi
 
   // Read Cargo.toml for workspace/package info
   const cargoPath = join(project.path, 'src-tauri', 'Cargo.toml')
-  if (existsSync(cargoPath)) {
+  if (await Bun.file(cargoPath).exists()) {
     try {
       const cargo = await Bun.file(cargoPath).text()
       data.cargoVersion = cargo.match(/^version\s*=\s*"([^"]+)"/m)?.[1]
@@ -253,7 +287,11 @@ async function readTauriConfig(project: ProjectInfo): Promise<ParsedProjectConfi
     type: 'confirm',
     items: [
       { label: 'No, just tag and push (CI builds)', value: 'no' },
-      { label: 'Yes, build locally', value: 'yes', hint: data.targets?.join(', ') },
+      {
+        label: 'Yes, build locally',
+        value: 'yes',
+        hint: data.targets?.join(', '),
+      },
     ],
   })
 
@@ -262,8 +300,11 @@ async function readTauriConfig(project: ProjectInfo): Promise<ParsedProjectConfi
 
 // ─── macOS ───────────────────────────────────────────────────────
 
-async function readMacosConfig(project: ProjectInfo): Promise<ParsedProjectConfig> {
+async function readMacosConfig(
+  project: ProjectInfo,
+): Promise<ParsedProjectConfig> {
   const options: UIOption[] = []
+  // biome-ignore lint/suspicious/noExplicitAny: dynamic config data from JSON files
   const data: Record<string, any> = {}
 
   // Scheme selection (schemes already detected during project detection)
@@ -275,7 +316,7 @@ async function readMacosConfig(project: ProjectInfo): Promise<ParsedProjectConfi
       id: 'scheme',
       label: 'Xcode scheme',
       type: 'select',
-      items: schemes.map((s) => ({ label: s, value: s })),
+      items: schemes.map(s => ({ label: s, value: s })),
     })
   } else if (schemes.length === 1) {
     data.defaultScheme = schemes[0]
@@ -301,7 +342,7 @@ async function readMacosConfig(project: ProjectInfo): Promise<ParsedProjectConfi
       { label: 'No', value: 'no' },
       { label: 'Yes, notarize the app', value: 'yes' },
     ],
-    when: (answers) => answers.build === 'yes',
+    when: answers => answers.build === 'yes',
   })
 
   return { options, data }
@@ -309,7 +350,10 @@ async function readMacosConfig(project: ProjectInfo): Promise<ParsedProjectConfi
 
 // ─── npm ─────────────────────────────────────────────────────────
 
-async function readNpmConfig(project: ProjectInfo): Promise<ParsedProjectConfig> {
+async function readNpmConfig(
+  project: ProjectInfo,
+): Promise<ParsedProjectConfig> {
+  // biome-ignore lint/suspicious/noExplicitAny: dynamic config data from JSON files
   const data: Record<string, any> = {}
 
   try {

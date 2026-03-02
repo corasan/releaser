@@ -1,5 +1,5 @@
 import { Box, Text, useApp } from 'ink'
-import React, { useCallback, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { AIPhase } from './components/ai-phase.js'
 import { ConfirmPhase } from './components/confirm-phase.js'
 import { DetectedBadge, DetectPhase } from './components/detect-phase.js'
@@ -46,7 +46,10 @@ export function App() {
     hasGhCli: false,
     hasEasCli: false,
   })
-  const [projectConfig, setProjectConfig] = useState<ParsedProjectConfig>({ options: [], data: {} })
+  const [projectConfig, setProjectConfig] = useState<ParsedProjectConfig>({
+    options: [],
+    data: {},
+  })
   const [bump, setBump] = useState<Bump | null>(null)
   const [answers, setAnswers] = useState<Answers>({})
   const [changelog, setChangelog] = useState<string | null>(null)
@@ -57,7 +60,11 @@ export function App() {
   const cwd = process.cwd()
 
   const handleDetected = useCallback(
-    (proj: ProjectInfo, detectedEnv: DetectedEnv, config: ParsedProjectConfig) => {
+    (
+      proj: ProjectInfo,
+      detectedEnv: DetectedEnv,
+      config: ParsedProjectConfig,
+    ) => {
       setProject(proj)
       setEnv(detectedEnv)
       setProjectConfig(config)
@@ -90,13 +97,10 @@ export function App() {
     [projectConfig],
   )
 
-  const handleOptionsComplete = useCallback(
-    (selectedAnswers: Answers) => {
-      setAnswers(selectedAnswers)
-      setPhase('ai')
-    },
-    [],
-  )
+  const handleOptionsComplete = useCallback((selectedAnswers: Answers) => {
+    setAnswers(selectedAnswers)
+    setPhase('ai')
+  }, [])
 
   // Build release context and advance to confirm
   const buildContextAndConfirm = useCallback(
@@ -207,7 +211,9 @@ export function App() {
             onComplete={handleOptionsComplete}
           />
         )}
-        {phase === 'ai' && <AIPhase onResult={handleAIResult} onSkip={handleAISkip} />}
+        {phase === 'ai' && (
+          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} />
+        )}
         {phase === 'confirm' && ctx && (
           <ConfirmPhase
             ctx={ctx}

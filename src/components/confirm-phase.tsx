@@ -1,6 +1,5 @@
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
-import React from 'react'
 import { getProjectTypeLabel } from '../lib/detect.js'
 import type { PipelineStep, ReleaseContext } from '../lib/types.js'
 

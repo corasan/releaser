@@ -1,6 +1,5 @@
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
-import React from 'react'
 import type { Bump, ProjectInfo } from '../lib/types.js'
 import { previewVersions } from '../lib/version.js'
 

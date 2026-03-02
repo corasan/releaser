@@ -1,5 +1,4 @@
 import { Box, Text } from 'ink'
-import React from 'react'
 import { getProjectTypeLabel } from '../lib/detect.js'
 import type { ReleaseContext } from '../lib/types.js'
 

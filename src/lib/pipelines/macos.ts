@@ -1,25 +1,17 @@
+import { join } from 'node:path'
 import { $ } from 'bun'
-import { existsSync } from 'fs'
-import { readdir } from 'fs/promises'
-import { join } from 'path'
-import {
-  createGitHubRelease,
-  getCurrentBranch,
-  pushWithTags,
-} from '../git.js'
+import { createGitHubRelease, getCurrentBranch, pushWithTags } from '../git.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 async function findInfoPlist(projectPath: string): Promise<string | null> {
   try {
-    const entries = await readdir(projectPath, { recursive: true })
-    const infoPlist = entries.find(
-      e =>
-        typeof e === 'string' &&
-        e.endsWith('Info.plist') &&
-        !e.includes('build') &&
-        !e.includes('Build'),
-    )
-    return infoPlist ? join(projectPath, infoPlist) : null
+    const glob = new Bun.Glob('**/Info.plist')
+    for await (const entry of glob.scan({ cwd: projectPath })) {
+      if (!entry.includes('build') && !entry.includes('Build')) {
+        return join(projectPath, entry)
+      }
+    }
+    return null
   } catch {
     return null
   }
@@ -45,7 +37,7 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       await $`/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${ctx.newVersion}" ${infoPlist}`
       const buildNum =
         await $`/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ${infoPlist}`.text()
-      const newBuild = parseInt(buildNum.trim() || '0') + 1
+      const newBuild = Number.parseInt(buildNum.trim() || '0', 10) + 1
       await $`/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${newBuild}" ${infoPlist}`
     },
   })
@@ -55,12 +47,11 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
     label: 'Bump version in package.json',
     execute: async ctx => {
       const pkgPath = join(ctx.project.path, 'package.json')
-      if (!existsSync(pkgPath)) return
+      if (!(await Bun.file(pkgPath).exists())) return
       const pkg = await Bun.file(pkgPath).json()
       pkg.version = ctx.newVersion
-      await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
     },
-    skip: ctx => !existsSync(join(ctx.project.path, 'package.json')),
   })
 
   steps.push({
@@ -72,7 +63,7 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       const date = new Date().toISOString().split('T')[0]
       const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
 
-      if (existsSync(changelogPath)) {
+      if (await Bun.file(changelogPath).exists()) {
         const existing = await Bun.file(changelogPath).text()
         await Bun.write(changelogPath, entry + existing)
       } else {
@@ -87,10 +78,12 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
     label: 'Commit and create tag',
     execute: async ctx => {
       await $`git add -u`.cwd(ctx.project.path)
-      if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) {
+      if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists()) {
         await $`git add CHANGELOG.md`.cwd(ctx.project.path)
       }
-      await $`git commit -m ${'chore: release ' + ctx.tag}`.cwd(ctx.project.path)
+      await $`git commit -m ${`chore: release ${ctx.tag}`}`.cwd(
+        ctx.project.path,
+      )
       await $`git tag ${ctx.tag}`.cwd(ctx.project.path)
     },
   })

@@ -1,6 +1,5 @@
+import { join } from 'node:path'
 import { $ } from 'bun'
-import { existsSync } from 'fs'
-import { join } from 'path'
 import {
   commitRelease,
   createGitHubRelease,
@@ -39,7 +38,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       const pkgPath = join(ctx.project.path, 'package.json')
       const pkg = await Bun.file(pkgPath).json()
       pkg.version = ctx.newVersion
-      await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
     },
   })
 
@@ -52,7 +51,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       const date = new Date().toISOString().split('T')[0]
       const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
 
-      if (existsSync(changelogPath)) {
+      if (await Bun.file(changelogPath).exists()) {
         const existing = await Bun.file(changelogPath).text()
         await Bun.write(changelogPath, entry + existing)
       } else {
@@ -67,8 +66,9 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     label: 'Commit and create tag',
     execute: async ctx => {
       const files = ['package.json']
-      if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) files.push('CHANGELOG.md')
-      if (existsSync(join(ctx.project.path, 'package-lock.json')))
+      if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists())
+        files.push('CHANGELOG.md')
+      if (await Bun.file(join(ctx.project.path, 'package-lock.json')).exists())
         files.push('package-lock.json')
       await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
     },

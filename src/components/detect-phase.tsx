@@ -1,14 +1,22 @@
 import { Box, Text } from 'ink'
 import Spinner from 'ink-spinner'
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { detectEnv, detectProject, getProjectTypeLabel } from '../lib/detect.js'
-import { isGitRepo, hasUncommittedChanges } from '../lib/git.js'
+import { hasUncommittedChanges, isGitRepo } from '../lib/git.js'
 import { readProjectConfig } from '../lib/project-config.js'
-import type { DetectedEnv, ParsedProjectConfig, ProjectInfo } from '../lib/types.js'
+import type {
+  DetectedEnv,
+  ParsedProjectConfig,
+  ProjectInfo,
+} from '../lib/types.js'
 
 interface DetectPhaseProps {
   cwd: string
-  onDetected: (project: ProjectInfo, env: DetectedEnv, config: ParsedProjectConfig) => void
+  onDetected: (
+    project: ProjectInfo,
+    env: DetectedEnv,
+    config: ParsedProjectConfig,
+  ) => void
   onError: (message: string) => void
 }
 
@@ -25,7 +33,9 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
 
       const dirty = await hasUncommittedChanges()
       if (dirty) {
-        onError('Uncommitted changes detected. Commit or stash before releasing.')
+        onError(
+          'Uncommitted changes detected. Commit or stash before releasing.',
+        )
         return
       }
 
@@ -34,7 +44,9 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
       const project = await detectProject(cwd)
 
       if (project.type === 'unknown') {
-        onError('Could not detect project type. Supported: npm, Expo, Tauri, macOS.')
+        onError(
+          'Could not detect project type. Supported: npm, Expo, Tauri, macOS.',
+        )
         return
       }
 
@@ -50,7 +62,7 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
     detect().catch(err => {
       onError(err instanceof Error ? err.message : String(err))
     })
-  }, [cwd])
+  }, [cwd, onDetected, onError])
 
   return (
     <Box gap={1}>

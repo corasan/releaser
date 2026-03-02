@@ -29,8 +29,8 @@ Output ONLY the markdown changelog content, nothing else.`
     })
 
     const text = messages
-      .filter((m: any) => m.type === 'text')
-      .map((m: any) => m.text)
+      .filter(m => m.type === 'text')
+      .map(m => m.text ?? '')
       .join('\n')
 
     return text || null
@@ -68,8 +68,8 @@ Rules:
     })
 
     const text = messages
-      .filter((m: any) => m.type === 'text')
-      .map((m: any) => m.text)
+      .filter(m => m.type === 'text')
+      .map(m => m.text ?? '')
       .join('')
 
     return JSON.parse(text.trim())

@@ -1,5 +1,5 @@
-import { Box, Text } from 'ink'
-import React, { useEffect, useReducer } from 'react'
+import { Box } from 'ink'
+import { useEffect, useReducer } from 'react'
 import { executePipeline } from '../lib/pipelines/index.js'
 import type { PipelineStep, ReleaseContext, StepStatus } from '../lib/types.js'
 import { StepList } from './step-list.js'
@@ -72,7 +72,7 @@ export function ReleasePhase({
         onError(result.error || 'Release failed')
       }
     })
-  }, [])
+  }, [ctx, onDone, onError, pipelineSteps])
 
   return (
     <Box flexDirection="column">

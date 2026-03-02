@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
 import { Box, Text } from 'ink'
 import SelectInput from 'ink-select-input'
+import { useEffect, useState } from 'react'
 import type { Answers, UIOption } from '../lib/types.js'
 
 interface DynamicOptionsProps {
@@ -11,12 +11,20 @@ interface DynamicOptionsProps {
 function Indicator({ isSelected }: { isSelected?: boolean }) {
   return (
     <Box marginRight={1}>
-      <Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '▸' : ' '}</Text>
+      <Text color={isSelected ? 'cyan' : undefined}>
+        {isSelected ? '▸' : ' '}
+      </Text>
     </Box>
   )
 }
 
-function OptionItem({ isSelected, label }: { isSelected?: boolean; label: string }) {
+function OptionItem({
+  isSelected,
+  label,
+}: {
+  isSelected?: boolean
+  label: string
+}) {
   return (
     <Text color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
       {label}
@@ -39,7 +47,10 @@ export function DynamicOptions({ options, onComplete }: DynamicOptionsProps) {
   const [answers, setAnswers] = useState<Answers>({})
 
   // Find the next visible option (respecting `when` predicates)
-  const findNextIndex = (fromIndex: number, currentAnswers: Answers): number => {
+  const findNextIndex = (
+    fromIndex: number,
+    currentAnswers: Answers,
+  ): number => {
     for (let i = fromIndex; i < options.length; i++) {
       const opt = options[i]
       if (!opt.when || opt.when(currentAnswers)) {
@@ -50,10 +61,11 @@ export function DynamicOptions({ options, onComplete }: DynamicOptionsProps) {
   }
 
   // On mount, skip to first visible option
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
-    const first = findNextIndex(0, answers)
+    const first = findNextIndex(0, {})
     if (first >= options.length) {
-      onComplete(answers)
+      onComplete({})
     } else {
       setCurrentIndex(first)
     }
@@ -78,7 +90,7 @@ export function DynamicOptions({ options, onComplete }: DynamicOptionsProps) {
   if (!current) return null
 
   // Build select items with hints
-  const selectItems = current.items.map((item) => ({
+  const selectItems = current.items.map(item => ({
     key: item.value,
     label: item.hint ? `${item.label}  ${item.hint}` : item.label,
     value: item.value,
@@ -88,9 +100,9 @@ export function DynamicOptions({ options, onComplete }: DynamicOptionsProps) {
     <Box flexDirection="column">
       {/* Show completed answers */}
       {Object.entries(answers).map(([id, value]) => {
-        const opt = options.find((o) => o.id === id)
+        const opt = options.find(o => o.id === id)
         if (!opt) return null
-        const selectedItem = opt.items.find((i) => i.value === value)
+        const selectedItem = opt.items.find(i => i.value === value)
         return (
           <Box key={id} gap={1}>
             <Text color="green">✔</Text>
@@ -110,7 +122,7 @@ export function DynamicOptions({ options, onComplete }: DynamicOptionsProps) {
       </Box>
       <SelectInput
         items={selectItems}
-        onSelect={(item) => handleSelect(item.value)}
+        onSelect={item => handleSelect(item.value)}
         indicatorComponent={Indicator}
         itemComponent={OptionItem}
       />

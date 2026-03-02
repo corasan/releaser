@@ -1,6 +1,5 @@
+import { join } from 'node:path'
 import { $ } from 'bun'
-import { existsSync } from 'fs'
-import { join } from 'path'
 import {
   commitRelease,
   createGitHubRelease,
@@ -46,7 +45,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       const pkgPath = join(ctx.project.path, 'package.json')
       const pkg = await Bun.file(pkgPath).json()
       pkg.version = ctx.newVersion
-      await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
     },
   })
 
@@ -58,7 +57,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
     execute: async ctx => {
       const appConfig = ctx.project.expo?.appConfig || 'app.config.ts'
       const configPath = join(ctx.project.path, appConfig)
-      if (!existsSync(configPath)) return
+      if (!(await Bun.file(configPath).exists())) return
 
       if (appConfig === 'app.json') {
         const json = await Bun.file(configPath).json()
@@ -67,14 +66,14 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
         expo.version = ctx.newVersion
 
         if (expo.ios) {
-          const currentBuild = parseInt(expo.ios.buildNumber || '0')
+          const currentBuild = Number.parseInt(expo.ios.buildNumber || '0', 10)
           expo.ios.buildNumber = String(currentBuild + 1)
         }
         if (expo.android) {
           expo.android.versionCode = (expo.android.versionCode || 0) + 1
         }
 
-        await Bun.write(configPath, JSON.stringify(json, null, 2) + '\n')
+        await Bun.write(configPath, `${JSON.stringify(json, null, 2)}\n`)
       } else {
         let content = await Bun.file(configPath).text()
         content = content.replace(
@@ -95,7 +94,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       const date = new Date().toISOString().split('T')[0]
       const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
 
-      if (existsSync(changelogPath)) {
+      if (await Bun.file(changelogPath).exists()) {
         const existing = await Bun.file(changelogPath).text()
         await Bun.write(changelogPath, entry + existing)
       } else {
@@ -111,11 +110,16 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
     execute: async ctx => {
       const files = ['package.json']
       const appConfig = ctx.project.expo?.appConfig
-      if (appConfig && existsSync(join(ctx.project.path, appConfig))) files.push(appConfig)
-      if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) files.push('CHANGELOG.md')
+      if (
+        appConfig &&
+        (await Bun.file(join(ctx.project.path, appConfig)).exists())
+      )
+        files.push(appConfig)
+      if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists())
+        files.push('CHANGELOG.md')
       if (
         !ctx.project.expo?.easConfigured &&
-        existsSync(join(ctx.project.path, 'eas.json'))
+        (await Bun.file(join(ctx.project.path, 'eas.json')).exists())
       ) {
         files.push('eas.json')
       }
@@ -137,8 +141,13 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'eas-update',
       label: `EAS Update (channel: ${channel})`,
       execute: async ctx => {
-        const ch = ctx.answers.channel || ctx.projectConfig.data.defaultChannel || 'production'
-        const msg = ctx.changelog ? ctx.changelog.split('\n')[0] : `Release ${ctx.tag}`
+        const ch =
+          ctx.answers.channel ||
+          ctx.projectConfig.data.defaultChannel ||
+          'production'
+        const msg = ctx.changelog
+          ? ctx.changelog.split('\n')[0]
+          : `Release ${ctx.tag}`
         await $`bunx eas-cli update --channel ${ch} --message ${msg} --non-interactive`.cwd(
           ctx.project.path,
         )
@@ -150,8 +159,14 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'eas-build',
       label: `EAS build (${profile}, ${platformLabel})`,
       execute: async ctx => {
-        const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
-        const prof = ctx.answers.profile || ctx.projectConfig.data.defaultProfile || 'production'
+        const p =
+          ctx.answers.platform ||
+          ctx.projectConfig.data.defaultPlatform ||
+          'all'
+        const prof =
+          ctx.answers.profile ||
+          ctx.projectConfig.data.defaultProfile ||
+          'production'
         await $`bunx eas-cli build --platform ${p} --profile ${prof} --non-interactive`.cwd(
           ctx.project.path,
         )
@@ -163,8 +178,13 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
         id: 'eas-submit',
         label: `Submit to stores (${platformLabel})`,
         execute: async ctx => {
-          const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
-          await $`bunx eas-cli submit --platform ${p} --non-interactive`.cwd(ctx.project.path)
+          const p =
+            ctx.answers.platform ||
+            ctx.projectConfig.data.defaultPlatform ||
+            'all'
+          await $`bunx eas-cli submit --platform ${p} --non-interactive`.cwd(
+            ctx.project.path,
+          )
         },
       })
     }
