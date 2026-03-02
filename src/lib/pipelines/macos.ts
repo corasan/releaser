@@ -3,7 +3,6 @@ import { existsSync } from 'fs'
 import { readdir } from 'fs/promises'
 import { join } from 'path'
 import {
-  commitRelease,
   createGitHubRelease,
   getCurrentBranch,
   pushWithTags,
@@ -46,7 +45,7 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       await $`/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${ctx.newVersion}" ${infoPlist}`
       const buildNum =
         await $`/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ${infoPlist}`.text()
-      const newBuild = Number.parseInt(buildNum.trim() || '0') + 1
+      const newBuild = parseInt(buildNum.trim() || '0') + 1
       await $`/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${newBuild}" ${infoPlist}`
     },
   })
@@ -91,9 +90,7 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       if (existsSync(join(ctx.project.path, 'CHANGELOG.md'))) {
         await $`git add CHANGELOG.md`.cwd(ctx.project.path)
       }
-      await $`git commit -m ${'chore: release ' + ctx.tag}`.cwd(
-        ctx.project.path,
-      )
+      await $`git commit -m ${'chore: release ' + ctx.tag}`.cwd(ctx.project.path)
       await $`git tag ${ctx.tag}`.cwd(ctx.project.path)
     },
   })
@@ -113,7 +110,9 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       label: `Build with Xcode (${scheme})`,
       execute: async ctx => {
         const s = ctx.answers.scheme || ctx.projectConfig.data.defaultScheme
-        await $`xcodebuild -scheme ${s} -configuration Release clean build`.cwd(ctx.project.path)
+        await $`xcodebuild -scheme ${s} -configuration Release clean build`.cwd(
+          ctx.project.path,
+        )
       },
     })
 
@@ -123,7 +122,11 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
         label: 'Notarize app',
         execute: async ctx => {
           const s = ctx.answers.scheme || ctx.projectConfig.data.defaultScheme
-          const archivePath = join(ctx.project.path, 'build', `${ctx.project.name}.xcarchive`)
+          const archivePath = join(
+            ctx.project.path,
+            'build',
+            `${ctx.project.name}.xcarchive`,
+          )
           await $`xcodebuild -scheme ${s} -configuration Release -archivePath ${archivePath} archive`.cwd(
             ctx.project.path,
           )
