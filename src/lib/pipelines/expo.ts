@@ -13,8 +13,10 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
   const steps: PipelineStep[] = []
   const { data } = ctx.projectConfig
 
+  const isOTA = ctx.answers.releaseType === 'ota'
   const profile = ctx.answers.profile || data.defaultProfile || 'production'
   const platform = ctx.answers.platform || data.defaultPlatform || 'all'
+  const channel = ctx.answers.channel || data.defaultChannel || 'production'
   const shouldSubmit = ctx.answers.submit === 'yes'
 
   if (ctx.env.hasTestScript) {
@@ -51,6 +53,8 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
   steps.push({
     id: 'bump-app-config',
     label: 'Bump version + build number in app config',
+    // OTA updates don't create a new native binary — skip build number increment
+    skip: ctx => ctx.answers.releaseType === 'ota',
     execute: async ctx => {
       const appConfig = ctx.project.expo?.appConfig || 'app.config.ts'
       const configPath = join(ctx.project.path, appConfig)
@@ -128,28 +132,42 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
     },
   })
 
-  const platformLabel = platform === 'all' ? 'iOS + Android' : platform
-  steps.push({
-    id: 'eas-build',
-    label: `EAS build (${profile}, ${platformLabel})`,
-    execute: async ctx => {
-      const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
-      const prof = ctx.answers.profile || ctx.projectConfig.data.defaultProfile || 'production'
-      await $`bunx eas-cli build --platform ${p} --profile ${prof} --non-interactive`.cwd(
-        ctx.project.path,
-      )
-    },
-  })
-
-  if (shouldSubmit) {
+  if (isOTA) {
     steps.push({
-      id: 'eas-submit',
-      label: `Submit to stores (${platformLabel})`,
+      id: 'eas-update',
+      label: `EAS Update (channel: ${channel})`,
       execute: async ctx => {
-        const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
-        await $`bunx eas-cli submit --platform ${p} --non-interactive`.cwd(ctx.project.path)
+        const ch = ctx.answers.channel || ctx.projectConfig.data.defaultChannel || 'production'
+        const msg = ctx.changelog ? ctx.changelog.split('\n')[0] : `Release ${ctx.tag}`
+        await $`bunx eas-cli update --channel ${ch} --message ${msg} --non-interactive`.cwd(
+          ctx.project.path,
+        )
       },
     })
+  } else {
+    const platformLabel = platform === 'all' ? 'iOS + Android' : platform
+    steps.push({
+      id: 'eas-build',
+      label: `EAS build (${profile}, ${platformLabel})`,
+      execute: async ctx => {
+        const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
+        const prof = ctx.answers.profile || ctx.projectConfig.data.defaultProfile || 'production'
+        await $`bunx eas-cli build --platform ${p} --profile ${prof} --non-interactive`.cwd(
+          ctx.project.path,
+        )
+      },
+    })
+
+    if (shouldSubmit) {
+      steps.push({
+        id: 'eas-submit',
+        label: `Submit to stores (${platformLabel})`,
+        execute: async ctx => {
+          const p = ctx.answers.platform || ctx.projectConfig.data.defaultPlatform || 'all'
+          await $`bunx eas-cli submit --platform ${p} --non-interactive`.cwd(ctx.project.path)
+        },
+      })
+    }
   }
 
   if (ctx.env.hasGhCli) {
