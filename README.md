@@ -20,11 +20,22 @@ Smart release CLI for all your projects — npm packages, Expo apps, Tauri apps,
   └────────────────────────────────────┘
 ```
 
+## Prerequisites
+
+- [Bun](https://bun.sh) — required to build and run
+- [gh CLI](https://cli.github.com) — optional, enables GitHub releases
+- [eas-cli](https://docs.expo.dev/eas/) — optional, required for Expo builds/submissions
+
 ## Install
 
 ```bash
-bun add -g releaser
+git clone https://github.com/yourusername/releaser
+cd releaser
+bun install
+bun install-local
 ```
+
+This compiles a self-contained binary and installs it to `/usr/local/bin/releaser`.
 
 ## Usage
 
@@ -46,63 +57,23 @@ The interactive TUI guides you through:
 
 | Type | Detection | What it does |
 |------|-----------|--------------|
-| **npm** | `package.json` | Bump version → commit → tag → push → npm publish → GitHub release |
-| **Expo** | `expo` in dependencies | Bump version + app.config → EAS build → submit to stores → GitHub release |
-| **Tauri** | `src-tauri/` directory | Bump package.json + tauri.conf.json + Cargo.toml → build → GitHub release |
-| **macOS** | `.xcodeproj` / `.xcworkspace` | Bump Info.plist → xcodebuild → notarize → GitHub release |
+| **npm** | `package.json` | Bump version → run build + tests → commit → tag → push → npm publish → GitHub release |
+| **Expo** | `expo` in dependencies | Bump version + app config → EAS build or OTA update → optional store submit → GitHub release |
+| **Tauri** | `src-tauri/` directory | Bump package.json + tauri.conf.json + Cargo.toml → optional local build → tag → push → GitHub release |
+| **macOS** | `.xcodeproj` / `.xcworkspace` | Detect schemes → optional xcodebuild + notarize → tag → push → GitHub release |
 
-## Configuration
+### Expo: Full build vs OTA update
 
-Create a `releaser.config.ts` in your project root:
+When releasing an Expo app, releaser lets you choose:
 
-```ts
-import type { ReleaseConfig } from 'releaser'
+- **Full release** — runs `eas build` (creates a new native binary) with optional store submission
+- **OTA update** — runs `eas update` (JS-only, no native rebuild required)
 
-export default {
-  // Override auto-detected type
-  // type: 'npm',
-
-  npm: {
-    publish: true,
-    access: 'public',
-    // registry: 'https://registry.npmjs.org',
-  },
-
-  expo: {
-    buildPlatform: 'all',    // 'ios' | 'android' | 'all'
-    submitToStore: false,
-    profile: 'production',
-  },
-
-  tauri: {
-    build: false,            // Set true to build locally
-  },
-
-  macos: {
-    scheme: 'MyApp',
-    notarize: false,
-  },
-
-  github: {
-    release: true,
-    generateNotes: true,
-    draft: false,
-  },
-
-  ai: {
-    changelog: true,         // Use Claude for changelog generation
-  },
-
-  hooks: {
-    beforeRelease: 'bun run build && bun test',
-    afterRelease: 'echo "Released!"',
-  },
-} satisfies ReleaseConfig
-```
+Build profiles, update channels, and submit targets are read directly from your `eas.json`.
 
 ## AI Features
 
-When `@anthropic-ai/claude-code` is installed and authenticated, releaser can:
+When `@anthropic-ai/claude-agent-sdk` is installed and authenticated, releaser can:
 
 - **Generate changelogs** from commit history using Claude
 - **Suggest version bumps** based on commit message analysis
@@ -116,10 +87,13 @@ AI features are optional and gracefully degrade when unavailable.
 bun run dev
 
 # Type check
-bunx tsc --noEmit
+bun run typecheck
 
 # Build standalone binary
 bun run compile
+
+# Compile and install to /usr/local/bin
+bun run install-local
 ```
 
 ## License

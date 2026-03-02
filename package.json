@@ -20,7 +20,7 @@
     "check:fix": "biome check --write ."
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^0.2.26",
+    "@anthropic-ai/claude-agent-sdk": "latest",
     "ink": "^5.1.0",
     "ink-select-input": "^6.0.0",
     "ink-spinner": "^5.0.0",

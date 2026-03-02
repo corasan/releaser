@@ -4,7 +4,7 @@ export async function generateChangelogWithAI(
   if (commits.length === 0) return null
 
   try {
-    const { query } = await import('@anthropic-ai/claude-code')
+    const { query } = await import('@anthropic-ai/claude-agent-sdk')
     const prompt = `You are a changelog generator. Analyze these git commits and generate a concise, well-organized changelog entry in markdown format.
 
 Commits:
@@ -19,21 +19,21 @@ Generate a changelog with these sections (only include sections that have releva
 Keep each entry to one line. Be concise but descriptive. Do not include commit hashes.
 Output ONLY the markdown changelog content, nothing else.`
 
-    const messages = await query({
+    let result = ''
+    for await (const message of query({
       prompt,
       options: {
         maxTurns: 1,
         systemPrompt:
           'You are a changelog generator. Output only markdown changelog content. No explanations.',
       },
-    })
+    })) {
+      if ('result' in message) {
+        result = message.result
+      }
+    }
 
-    const text = messages
-      .filter(m => m.type === 'text')
-      .map(m => m.text ?? '')
-      .join('\n')
-
-    return text || null
+    return result || null
   } catch {
     return null
   }
@@ -45,7 +45,7 @@ export async function suggestBumpFromCommits(
   if (commits.length === 0) return null
 
   try {
-    const { query } = await import('@anthropic-ai/claude-code')
+    const { query } = await import('@anthropic-ai/claude-agent-sdk')
     const prompt = `Analyze these git commits and suggest a semver version bump.
 
 Commits:
@@ -59,20 +59,20 @@ Rules:
 - "minor" if there are new features
 - "patch" if there are only fixes, refactoring, or docs`
 
-    const messages = await query({
+    let result = ''
+    for await (const message of query({
       prompt,
       options: {
         maxTurns: 1,
         systemPrompt: 'You output only valid JSON. No explanations.',
       },
-    })
+    })) {
+      if ('result' in message) {
+        result = message.result
+      }
+    }
 
-    const text = messages
-      .filter(m => m.type === 'text')
-      .map(m => m.text ?? '')
-      .join('')
-
-    return JSON.parse(text.trim())
+    return JSON.parse(result.trim())
   } catch {
     return null
   }
@@ -80,7 +80,7 @@ Rules:
 
 export async function isAIAvailable(): Promise<boolean> {
   try {
-    await import('@anthropic-ai/claude-code')
+    await import('@anthropic-ai/claude-agent-sdk')
     return true
   } catch {
     return false
