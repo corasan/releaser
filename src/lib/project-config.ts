@@ -74,6 +74,26 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
       const buildProfiles = eas.build ? Object.keys(eas.build) : []
       data.buildProfiles = buildProfiles
 
+      // ── Extract update channels from build profiles ──
+      const updateChannels: string[] = []
+      for (const name of buildProfiles) {
+        const ch = eas.build[name]?.channel
+        if (ch && !updateChannels.includes(ch)) updateChannels.push(ch)
+      }
+      data.updateChannels = updateChannels
+      if (updateChannels.length === 1) data.defaultChannel = updateChannels[0]
+
+      // ── Release type: full build vs OTA update ──
+      options.push({
+        id: 'releaseType',
+        label: 'Release type',
+        type: 'select',
+        items: [
+          { label: 'Full release', value: 'full', hint: 'EAS Build + optional store submit' },
+          { label: 'OTA update', value: 'ota', hint: 'EAS Update (JS-only, no native rebuild)' },
+        ],
+      })
+
       if (buildProfiles.length > 1) {
         options.push({
           id: 'profile',
@@ -95,9 +115,21 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
               hint: hints.length ? hints.join(', ') : undefined,
             }
           }),
+          when: (answers) => answers.releaseType !== 'ota',
         })
       } else if (buildProfiles.length === 1) {
         data.defaultProfile = buildProfiles[0]
+      }
+
+      // ── Update channel select (OTA only) ──
+      if (updateChannels.length > 1) {
+        options.push({
+          id: 'channel',
+          label: 'Update channel',
+          type: 'select',
+          items: updateChannels.map((ch) => ({ label: ch, value: ch })),
+          when: (answers) => answers.releaseType === 'ota',
+        })
       }
 
       // ── Submit config → auto-detect what can be submitted ──
@@ -139,6 +171,7 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
         label: 'Platform',
         type: 'select',
         items: platformItems,
+        when: (answers) => answers.releaseType !== 'ota',
       })
     }
   } else if (data.hasIos) {
@@ -164,8 +197,9 @@ async function readExpoConfig(project: ProjectInfo): Promise<ParsedProjectConfig
         { label: `Yes, submit to ${platformLabel}`, value: 'yes' },
         { label: 'No, just build', value: 'no' },
       ],
-      // Only show submit if selected profile has submit config
+      // Only show submit if selected profile has submit config and it's a full release
       when: (answers) => {
+        if (answers.releaseType === 'ota') return false
         if (!data.eas?.submit) return false
         const profile = answers.profile || data.defaultProfile || 'production'
         return !!data.eas.submit[profile]
