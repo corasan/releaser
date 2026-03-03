@@ -17,7 +17,7 @@ export function Header() {
         <Text color="white" bold>
           {' Releaser'}
         </Text>
-        <Text dimColor> v${pckg.version}</Text>
+        <Text dimColor> v{pckg.version}</Text>
         <Text color="cyan" bold>
           {'              ║'}
         </Text>
