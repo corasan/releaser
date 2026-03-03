@@ -28,7 +28,7 @@ import type {
   ReleaseContext,
   ReleaserConfig,
 } from './lib/types.js'
-import { bumpVersion, isPreRelease } from './lib/version.js'
+import { bumpVersion, isPreRelease, getPreReleaseChannel, bumpPreRelease } from './lib/version.js'
 import {
   detectWorkspaces,
   resolveWorkspacePackages,
@@ -48,7 +48,13 @@ type Phase =
   | 'error'
   | 'cancelled'
 
-export function App() {
+interface AppProps {
+  cliChannel?: PreReleaseChannel
+  cliBump?: Bump
+  cliBumpFlag?: boolean
+}
+
+export function App({ cliChannel, cliBump, cliBumpFlag }: AppProps) {
   const { exit } = useApp()
 
   const [phase, setPhase] = useState<Phase>('detect')
@@ -120,9 +126,51 @@ export function App() {
         return
       }
 
+      // CLI flags: skip version select
+      if (cliChannel || cliBumpFlag || cliBump) {
+        const currentVersion = proj.version
+        const currentIsPreRelease = isPreRelease(currentVersion)
+
+        if (cliBumpFlag) {
+          if (!currentIsPreRelease) {
+            setError('Error: --bump requires a pre-release version')
+            setPhase('error')
+            setTimeout(() => exit(), 100)
+            return
+          }
+          const channel = getPreReleaseChannel(currentVersion)!
+          const newVer = bumpPreRelease(currentVersion, null, channel)
+          setNewVersion(newVer)
+          setBump('patch')
+          setPreRelease(channel)
+        } else if (cliChannel) {
+          if (!currentIsPreRelease && !cliBump) {
+            setError(`Error: --${cliChannel} from stable requires --patch, --minor, or --major`)
+            setPhase('error')
+            setTimeout(() => exit(), 100)
+            return
+          }
+          const newVer = bumpPreRelease(currentVersion, cliBump ?? null, cliChannel)
+          setNewVersion(newVer)
+          setBump(cliBump ?? 'patch')
+          setPreRelease(cliChannel)
+        } else if (cliBump) {
+          const newVer = bumpVersion(currentVersion, cliBump)
+          setNewVersion(newVer)
+          setBump(cliBump)
+        }
+
+        if (projectConfig.options.length > 0) {
+          setPhase('options')
+        } else {
+          setPhase('ai')
+        }
+        return
+      }
+
       setPhase('version')
     },
-    [cwd],
+    [cwd, cliChannel, cliBump, cliBumpFlag, exit],
   )
 
   const handleDetectError = useCallback(

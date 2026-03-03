@@ -2,6 +2,7 @@
 
 import { render } from 'ink'
 import { App } from './app.js'
+import type { Bump, PreReleaseChannel } from './lib/types.js'
 
 // Handle --version flag
 if (process.argv.includes('--version') || process.argv.includes('-v')) {
@@ -43,4 +44,47 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0)
 }
 
-render(<App />)
+// Parse CLI flags
+const args = process.argv.slice(2)
+const flags = {
+  alpha: args.includes('--alpha'),
+  beta: args.includes('--beta'),
+  rc: args.includes('--rc'),
+  bump: args.includes('--bump'),
+  patch: args.includes('--patch'),
+  minor: args.includes('--minor'),
+  major: args.includes('--major'),
+}
+
+// Validate mutually exclusive flags
+const channelFlags = [flags.alpha, flags.beta, flags.rc].filter(Boolean)
+if (channelFlags.length > 1) {
+  console.error('Error: Only one of --alpha, --beta, --rc can be specified')
+  process.exit(1)
+}
+
+if (flags.bump && channelFlags.length > 0) {
+  console.error('Error: --bump cannot be combined with --alpha, --beta, or --rc')
+  process.exit(1)
+}
+
+const bumpFlags = [flags.patch, flags.minor, flags.major].filter(Boolean)
+if (bumpFlags.length > 1) {
+  console.error('Error: Only one of --patch, --minor, --major can be specified')
+  process.exit(1)
+}
+
+// Determine CLI overrides
+let cliChannel: PreReleaseChannel | undefined
+if (flags.alpha) cliChannel = 'alpha'
+else if (flags.beta) cliChannel = 'beta'
+else if (flags.rc) cliChannel = 'rc'
+
+let cliBump: Bump | undefined
+if (flags.patch) cliBump = 'patch'
+else if (flags.minor) cliBump = 'minor'
+else if (flags.major) cliBump = 'major'
+
+const cliBumpFlag = flags.bump
+
+render(<App cliChannel={cliChannel} cliBump={cliBump} cliBumpFlag={cliBumpFlag} />)
