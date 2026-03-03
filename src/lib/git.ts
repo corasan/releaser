@@ -44,11 +44,20 @@ export async function pushWithTags(branch: string): Promise<void> {
 export async function createGitHubRelease(
   tag: string,
   notes?: string,
+  isPreRelease?: boolean,
 ): Promise<void> {
   if (notes) {
-    await $`gh release create ${tag} --notes ${notes}`
+    if (isPreRelease) {
+      await $`gh release create ${tag} --prerelease --notes ${notes}`
+    } else {
+      await $`gh release create ${tag} --notes ${notes}`
+    }
   } else {
-    await $`gh release create ${tag} --generate-notes`
+    if (isPreRelease) {
+      await $`gh release create ${tag} --prerelease --generate-notes`
+    } else {
+      await $`gh release create ${tag} --generate-notes`
+    }
   }
 }
 

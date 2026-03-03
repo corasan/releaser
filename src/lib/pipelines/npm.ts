@@ -150,9 +150,15 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       if (publishable.has(b.relativePath)) {
         steps.push({
           id: `npm-publish-${b.relativePath.replace(/\//g, '-')}`,
-          label: `Publish ${b.name}@${b.newVersion}`,
+          label: ctx.preRelease
+            ? `Publish ${b.name}@${b.newVersion} (tag: ${ctx.preRelease})`
+            : `Publish ${b.name}@${b.newVersion}`,
           execute: async ctx => {
-            await $`npm publish`.cwd(join(ctx.project.path, b.relativePath))
+            if (ctx.preRelease) {
+              await $`npm publish --tag ${ctx.preRelease}`.cwd(join(ctx.project.path, b.relativePath))
+            } else {
+              await $`npm publish`.cwd(join(ctx.project.path, b.relativePath))
+            }
           },
         })
       }
@@ -162,18 +168,30 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     for (const pkgPath of publishable) {
       steps.push({
         id: `npm-publish-${pkgPath.replace(/\//g, '-')}`,
-        label: `Publish ${pkgPath}`,
+        label: ctx.preRelease
+          ? `Publish ${pkgPath} (tag: ${ctx.preRelease})`
+          : `Publish ${pkgPath}`,
         execute: async ctx => {
-          await $`npm publish`.cwd(join(ctx.project.path, pkgPath))
+          if (ctx.preRelease) {
+            await $`npm publish --tag ${ctx.preRelease}`.cwd(join(ctx.project.path, pkgPath))
+          } else {
+            await $`npm publish`.cwd(join(ctx.project.path, pkgPath))
+          }
         },
       })
     }
   } else if (!ctx.project.npm?.private) {
     steps.push({
       id: 'npm-publish',
-      label: 'Publish to npm',
+      label: ctx.preRelease
+        ? `Publish to npm (tag: ${ctx.preRelease})`
+        : 'Publish to npm',
       execute: async ctx => {
-        await $`npm publish`.cwd(ctx.project.path)
+        if (ctx.preRelease) {
+          await $`npm publish --tag ${ctx.preRelease}`.cwd(ctx.project.path)
+        } else {
+          await $`npm publish`.cwd(ctx.project.path)
+        }
       },
     })
   }
@@ -204,7 +222,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
           id: `github-release-${b.relativePath.replace(/\//g, '-')}`,
           label: `Create GitHub release for ${b.name}@${b.newVersion}`,
           execute: async ctx => {
-            await createGitHubRelease(tag, ctx.changelog)
+            await createGitHubRelease(tag, ctx.changelog, !!ctx.preRelease)
           },
         })
       }
@@ -213,7 +231,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         id: 'github-release',
         label: 'Create GitHub release',
         execute: async ctx => {
-          await createGitHubRelease(ctx.tag, ctx.changelog)
+          await createGitHubRelease(ctx.tag, ctx.changelog, !!ctx.preRelease)
         },
       })
     }
