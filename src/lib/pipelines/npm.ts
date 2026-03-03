@@ -7,6 +7,7 @@ import {
   pushWithTags,
 } from '../git.js'
 import { runHook } from '../hooks.js'
+import { bumpMonorepoVersions, getPublishablePackages } from '../monorepo.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
@@ -43,12 +44,18 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
 
   steps.push({
     id: 'bump-version',
-    label: 'Bump version in package.json',
+    label: ctx.releaserConfig?.packages
+      ? 'Bump version in all packages'
+      : 'Bump version in package.json',
     execute: async ctx => {
-      const pkgPath = join(ctx.project.path, 'package.json')
-      const pkg = await Bun.file(pkgPath).json()
-      pkg.version = ctx.newVersion
-      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+      if (ctx.releaserConfig?.packages) {
+        await bumpMonorepoVersions(ctx.project.path, ctx.releaserConfig.packages, ctx.newVersion)
+      } else {
+        const pkgPath = join(ctx.project.path, 'package.json')
+        const pkg = await Bun.file(pkgPath).json()
+        pkg.version = ctx.newVersion
+        await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+      }
     },
   })
 
@@ -84,7 +91,14 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     id: 'commit-tag',
     label: 'Commit and create tag',
     execute: async ctx => {
-      const files = ['package.json']
+      const files: string[] = []
+      if (ctx.releaserConfig?.packages) {
+        for (const [pkgPath, config] of Object.entries(ctx.releaserConfig.packages)) {
+          if (config.bump) files.push(join(pkgPath, 'package.json'))
+        }
+      } else {
+        files.push('package.json')
+      }
       if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists())
         files.push('CHANGELOG.md')
       if (await Bun.file(join(ctx.project.path, 'package-lock.json')).exists())
@@ -111,7 +125,18 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     skip: ctx => !ctx.releaserConfig?.hooks?.prePublish,
   })
 
-  if (!ctx.project.npm?.private) {
+  if (ctx.releaserConfig?.packages) {
+    const publishable = getPublishablePackages(ctx.releaserConfig.packages)
+    for (const pkgPath of publishable) {
+      steps.push({
+        id: `npm-publish-${pkgPath.replace(/\//g, '-')}`,
+        label: `Publish ${pkgPath}`,
+        execute: async ctx => {
+          await $`npm publish`.cwd(join(ctx.project.path, pkgPath))
+        },
+      })
+    }
+  } else if (!ctx.project.npm?.private) {
     steps.push({
       id: 'npm-publish',
       label: 'Publish to npm',
