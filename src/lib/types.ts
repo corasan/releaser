@@ -119,4 +119,6 @@ export interface ReleaserConfig {
   versioning?: VersioningStrategy
   packages?: Record<string, PackageConfig>
   hooks?: Partial<Record<HookName, string>>
+  changelog?: boolean          // write CHANGELOG.md (default: auto-detect if file exists)
+  aiReleaseNotes?: boolean     // use AI for GitHub release notes (default: false)
 }

@@ -345,7 +345,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag }: AppProps) {
           />
         )}
         {phase === 'ai' && (
-          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} />
+          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} releaserConfig={releaserConfig} cwd={cwd} />
         )}
         {phase === 'confirm' && ctx && (
           <ConfirmPhase

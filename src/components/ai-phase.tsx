@@ -3,11 +3,15 @@ import SelectInput from 'ink-select-input'
 import Spinner from 'ink-spinner'
 import { useEffect, useState } from 'react'
 import { generateChangelogWithAI, isAIAvailable } from '../lib/ai.js'
+import { writeReleaserConfig } from '../lib/config.js'
 import { getCommitsSinceLastTag } from '../lib/git.js'
+import type { ReleaserConfig } from '../lib/types.js'
 
 interface AIPhaseProps {
   onResult: (changelog: string | null) => void
   onSkip: () => void
+  releaserConfig: ReleaserConfig | null
+  cwd: string
 }
 
 function Indicator({ isSelected }: { isSelected?: boolean }) {
@@ -28,19 +32,22 @@ function Item({ isSelected, label }: { isSelected?: boolean; label: string }) {
   )
 }
 
-export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
+export function AIPhase({ onResult, onSkip, releaserConfig, cwd }: AIPhaseProps) {
   const [state, setState] = useState<
-    'checking' | 'ask' | 'generating' | 'unavailable'
+    'checking' | 'ask' | 'ask-changelog' | 'generating' | 'unavailable'
   >('checking')
   const [commits, setCommits] = useState<string[]>([])
+  const [hasChangelogFile, setHasChangelogFile] = useState(false)
 
   useEffect(() => {
     async function check() {
-      const [available, recentCommits] = await Promise.all([
+      const [available, recentCommits, changelogExists] = await Promise.all([
         isAIAvailable(),
         getCommitsSinceLastTag(),
+        Bun.file(`${cwd}/CHANGELOG.md`).exists(),
       ])
       setCommits(recentCommits)
+      setHasChangelogFile(changelogExists)
 
       if (!available || recentCommits.length === 0) {
         setState('unavailable')
@@ -53,7 +60,7 @@ export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
     }
 
     check()
-  }, [onSkip])
+  }, [onSkip, cwd])
 
   if (state === 'checking') {
     return (
@@ -91,6 +98,36 @@ export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
     )
   }
 
+  if (state === 'ask-changelog') {
+    const items = [
+      { key: 'yes', label: 'Yes, create CHANGELOG.md', value: true },
+      { key: 'no', label: 'No, skip CHANGELOG.md', value: false },
+    ]
+
+    return (
+      <Box flexDirection="column">
+        <Box marginBottom={1}>
+          <Text bold>Create CHANGELOG.md for future releases?</Text>
+        </Box>
+        <SelectInput
+          items={items}
+          onSelect={item => {
+            if (item.value) {
+              const updated = { ...releaserConfig, changelog: true }
+              writeReleaserConfig(cwd, updated)
+            }
+            setState('generating')
+            generateChangelogWithAI(commits).then(changelog => {
+              onResult(changelog)
+            })
+          }}
+          indicatorComponent={Indicator}
+          itemComponent={Item}
+        />
+      </Box>
+    )
+  }
+
   // state === 'ask'
   const items = [
     {
@@ -110,6 +147,11 @@ export function AIPhase({ onResult, onSkip }: AIPhaseProps) {
         items={items}
         onSelect={item => {
           if (item.value) {
+            // If CHANGELOG.md doesn't exist and config hasn't explicitly set changelog
+            if (!hasChangelogFile && releaserConfig?.changelog === undefined) {
+              setState('ask-changelog')
+              return
+            }
             setState('generating')
             generateChangelogWithAI(commits).then(changelog => {
               onResult(changelog)

@@ -92,7 +92,11 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         await Bun.write(changelogPath, `# Changelog\n\n${entry}`)
       }
     },
-    skip: ctx => !ctx.changelog,
+    skip: ctx => {
+      if (!ctx.changelog) return true
+      if (ctx.releaserConfig?.changelog === false) return true
+      return false
+    },
   })
 
   steps.push({
@@ -222,7 +226,8 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
           id: `github-release-${b.relativePath.replace(/\//g, '-')}`,
           label: `Create GitHub release for ${b.name}@${b.newVersion}`,
           execute: async ctx => {
-            await createGitHubRelease(tag, ctx.changelog, !!ctx.preRelease)
+            const notes = ctx.releaserConfig?.aiReleaseNotes ? ctx.changelog : undefined
+            await createGitHubRelease(tag, notes, !!ctx.preRelease)
           },
         })
       }
@@ -231,7 +236,8 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         id: 'github-release',
         label: 'Create GitHub release',
         execute: async ctx => {
-          await createGitHubRelease(ctx.tag, ctx.changelog, !!ctx.preRelease)
+          const notes = ctx.releaserConfig?.aiReleaseNotes ? ctx.changelog : undefined
+          await createGitHubRelease(ctx.tag, notes, !!ctx.preRelease)
         },
       })
     }
