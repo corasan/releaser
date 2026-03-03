@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { $ } from 'bun'
 import type { DetectedEnv, ProjectInfo } from './types.js'
@@ -37,21 +38,25 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
   const srcTauriDir = join(cwd, 'src-tauri')
   const tauriConf = join(srcTauriDir, 'tauri.conf.json')
 
-  if (await Bun.file(srcTauriDir).exists()) {
+  if (existsSync(srcTauriDir)) {
     const tauriVersion = (await Bun.file(
       join(srcTauriDir, 'Cargo.toml'),
     ).exists())
       ? 2
       : 1
+    let tauriConfig: Record<string, string> | null = null
+    try {
+      tauriConfig = await Bun.file(tauriConf).json()
+    } catch {
+      // tauri.conf.json missing or invalid
+    }
     return {
       type: 'tauri',
-      name: pkg?.name || 'tauri-app',
-      version: pkg?.version || '0.0.0',
+      name: tauriConfig?.productName || pkg?.name || 'tauri-app',
+      version: tauriConfig?.version || pkg?.version || '0.0.0',
       path: cwd,
       tauri: {
-        configPath: (await Bun.file(tauriConf).exists())
-          ? tauriConf
-          : join(srcTauriDir, 'tauri.conf.json'),
+        configPath: tauriConf,
         version: tauriVersion,
       },
     }
