@@ -27,7 +27,13 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'test',
       label: 'Run tests',
       execute: async ctx => {
-        await $`bun run test`.cwd(ctx.project.path).quiet()
+        const proc = Bun.spawn(['bun', 'run', 'test'], {
+          cwd: ctx.project.path,
+          stdout: 'ignore',
+          stderr: 'ignore',
+        })
+        const code = await proc.exited
+        if (code !== 0) throw new Error('Tests failed')
       },
     })
   }
