@@ -2,12 +2,13 @@ import { join } from 'node:path'
 import { $ } from 'bun'
 import {
   commitRelease,
+  commitReleaseMultiTag,
   createGitHubRelease,
   getCurrentBranch,
   pushWithTags,
 } from '../git.js'
 import { runHook } from '../hooks.js'
-import { bumpMonorepoVersions, getPublishablePackages } from '../monorepo.js'
+import { bumpMonorepoVersions, bumpMonorepoVersionsIndependent, getPublishablePackages } from '../monorepo.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
@@ -44,11 +45,19 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
 
   steps.push({
     id: 'bump-version',
-    label: ctx.releaserConfig?.packages
-      ? 'Bump version in all packages'
-      : 'Bump version in package.json',
+    label: ctx.packageBumps
+      ? 'Bump versions independently'
+      : ctx.releaserConfig?.packages
+        ? 'Bump version in all packages'
+        : 'Bump version in package.json',
     execute: async ctx => {
-      if (ctx.releaserConfig?.packages) {
+      if (ctx.packageBumps) {
+        const bumps: Record<string, string> = {}
+        for (const b of ctx.packageBumps) {
+          bumps[b.relativePath] = b.newVersion
+        }
+        await bumpMonorepoVersionsIndependent(ctx.project.path, bumps)
+      } else if (ctx.releaserConfig?.packages) {
         await bumpMonorepoVersions(ctx.project.path, ctx.releaserConfig.packages, ctx.newVersion)
       } else {
         const pkgPath = join(ctx.project.path, 'package.json')
@@ -92,7 +101,11 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     label: 'Commit and create tag',
     execute: async ctx => {
       const files: string[] = []
-      if (ctx.releaserConfig?.packages) {
+      if (ctx.packageBumps) {
+        for (const b of ctx.packageBumps) {
+          files.push(join(b.relativePath, 'package.json'))
+        }
+      } else if (ctx.releaserConfig?.packages) {
         for (const [pkgPath, config] of Object.entries(ctx.releaserConfig.packages)) {
           if (config.bump) files.push(join(pkgPath, 'package.json'))
         }
@@ -103,7 +116,14 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         files.push('CHANGELOG.md')
       if (await Bun.file(join(ctx.project.path, 'package-lock.json')).exists())
         files.push('package-lock.json')
-      await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
+
+      if (ctx.packageBumps) {
+        const tags = ctx.packageBumps.map(b => `${b.name}@${b.newVersion}`)
+        const message = `chore: release ${tags.join(', ')}`
+        await commitReleaseMultiTag(files, message, tags)
+      } else {
+        await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
+      }
     },
   })
 
@@ -125,7 +145,21 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     skip: ctx => !ctx.releaserConfig?.hooks?.prePublish,
   })
 
-  if (ctx.releaserConfig?.packages) {
+  if (ctx.packageBumps && ctx.releaserConfig?.packages) {
+    // Independent versioning: only publish selected packages that are publishable
+    const publishable = new Set(getPublishablePackages(ctx.releaserConfig.packages))
+    for (const b of ctx.packageBumps) {
+      if (publishable.has(b.relativePath)) {
+        steps.push({
+          id: `npm-publish-${b.relativePath.replace(/\//g, '-')}`,
+          label: `Publish ${b.name}@${b.newVersion}`,
+          execute: async ctx => {
+            await $`npm publish`.cwd(join(ctx.project.path, b.relativePath))
+          },
+        })
+      }
+    }
+  } else if (ctx.releaserConfig?.packages) {
     const publishable = getPublishablePackages(ctx.releaserConfig.packages)
     for (const pkgPath of publishable) {
       steps.push({

@@ -21,6 +21,21 @@ export async function bumpMonorepoVersions(
   return bumped
 }
 
+export async function bumpMonorepoVersionsIndependent(
+  cwd: string,
+  bumps: Record<string, string>,
+): Promise<string[]> {
+  const bumpedPaths: string[] = []
+  for (const [relativePath, newVersion] of Object.entries(bumps)) {
+    const pkgPath = join(cwd, relativePath, 'package.json')
+    const pkg = await Bun.file(pkgPath).json()
+    pkg.version = newVersion
+    await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+    bumpedPaths.push(relativePath)
+  }
+  return bumpedPaths
+}
+
 export function getPublishablePackages(
   packages: Record<string, PackageConfig>,
 ): string[] {

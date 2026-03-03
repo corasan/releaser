@@ -36,6 +36,20 @@ export async function commitRelease(
   await $`git tag ${tag}`
 }
 
+export async function commitReleaseMultiTag(
+  files: string[],
+  message: string,
+  tags: string[],
+): Promise<void> {
+  for (const file of files) {
+    await $`git add ${file}`
+  }
+  await $`git commit -m ${message}`
+  for (const tag of tags) {
+    await $`git tag ${tag}`
+  }
+}
+
 export async function pushWithTags(branch: string): Promise<void> {
   await $`git push origin ${branch} --tags`
 }

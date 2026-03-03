@@ -68,6 +68,14 @@ export interface PipelineStep {
   skip?: (ctx: ReleaseContext) => boolean
 }
 
+export interface PackageBump {
+  relativePath: string
+  name: string
+  bump: Bump
+  currentVersion: string
+  newVersion: string
+}
+
 export interface ReleaseContext {
   project: ProjectInfo
   bump: Bump
@@ -78,6 +86,7 @@ export interface ReleaseContext {
   projectConfig: ParsedProjectConfig
   releaserConfig: ReleaserConfig | null
   changelog?: string
+  packageBumps?: PackageBump[]
 }
 
 export interface CompletedPhase {

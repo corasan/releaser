@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { join } from 'node:path'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { bumpMonorepoVersions, getPublishablePackages } from './monorepo.js'
+import { bumpMonorepoVersions, bumpMonorepoVersionsIndependent, getPublishablePackages } from './monorepo.js'
 import type { PackageConfig } from './types.js'
 
 const fixturesDir = join(import.meta.dir, '__fixtures__', 'monorepo')
@@ -72,6 +72,26 @@ describe('bumpMonorepoVersions', () => {
 
     const result = await bumpMonorepoVersions(cwd, packages, '3.0.0')
     expect(result).toEqual(['packages/alpha'])
+  })
+})
+
+describe('bumpMonorepoVersionsIndependent', () => {
+  test('bumps independent versions per package', async () => {
+    const cwd = setup('mono-independent', {
+      'packages/a/package.json': JSON.stringify({ name: 'a', version: '1.0.0' }),
+      'packages/b/package.json': JSON.stringify({ name: 'b', version: '2.0.0' }),
+    })
+
+    const bumped = await bumpMonorepoVersionsIndependent(cwd, {
+      'packages/a': '1.1.0',
+      'packages/b': '3.0.0',
+    })
+
+    expect(bumped).toEqual(['packages/a', 'packages/b'])
+    const a = JSON.parse(readFileSync(join(cwd, 'packages/a/package.json'), 'utf-8'))
+    const b = JSON.parse(readFileSync(join(cwd, 'packages/b/package.json'), 'utf-8'))
+    expect(a.version).toBe('1.1.0')
+    expect(b.version).toBe('3.0.0')
   })
 })
 

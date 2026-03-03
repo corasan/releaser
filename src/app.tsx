@@ -12,6 +12,7 @@ import { DynamicOptions } from './components/dynamic-options.js'
 import { Header } from './components/header.js'
 import { ReleasePhase } from './components/release-phase.js'
 import { VersionSelect } from './components/version-select.js'
+import { PackageSelect } from './components/package-select.js'
 import { InitPhase } from './components/init-phase.js'
 import { parseReleaserConfig } from './lib/config.js'
 import { getPipelineSteps } from './lib/pipelines/index.js'
@@ -19,6 +20,7 @@ import type {
   Answers,
   Bump,
   DetectedEnv,
+  PackageBump,
   ParsedProjectConfig,
   PipelineStep,
   ProjectInfo,
@@ -35,6 +37,7 @@ import {
 type Phase =
   | 'detect'
   | 'init'
+  | 'package-select'
   | 'version'
   | 'options'
   | 'ai'
@@ -67,6 +70,7 @@ export function App() {
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([])
   const [ctx, setCtx] = useState<ReleaseContext | null>(null)
   const [workspacePackages, setWorkspacePackages] = useState<WorkspacePackage[]>([])
+  const [packageBumps, setPackageBumps] = useState<PackageBump[]>([])
 
   const cwd = process.cwd()
 
@@ -92,6 +96,11 @@ export function App() {
           setPhase('init')
           return
         }
+      }
+
+      if (rc?.versioning === 'independent' && rc.packages) {
+        setPhase('package-select')
+        return
       }
 
       setPhase('version')
@@ -132,24 +141,27 @@ export function App() {
   const buildContextAndConfirm = useCallback(
     (finalChangelog: string | null, finalAnswers: Answers) => {
       setChangelog(finalChangelog)
-      const newVersion = bumpVersion(project!.version, bump!)
+      const isIndependent = packageBumps.length > 0 && releaserConfig?.versioning === 'independent'
+      const effectiveBump = isIndependent ? packageBumps[0].bump : bump!
+      const effectiveVersion = isIndependent ? packageBumps[0].newVersion : bumpVersion(project!.version, bump!)
       const releaseCtx: ReleaseContext = {
         project: project!,
-        bump: bump!,
-        newVersion,
-        tag: `v${newVersion}`,
+        bump: effectiveBump,
+        newVersion: effectiveVersion,
+        tag: isIndependent ? packageBumps.map(b => `${b.name}@${b.newVersion}`).join(', ') : `v${effectiveVersion}`,
         env,
         answers: finalAnswers,
         projectConfig,
         releaserConfig,
         changelog: finalChangelog || undefined,
+        packageBumps: isIndependent ? packageBumps : undefined,
       }
       const steps = getPipelineSteps(releaseCtx)
       setPipelineSteps(steps)
       setCtx(releaseCtx)
       setPhase('confirm')
     },
-    [project, bump, env, projectConfig, releaserConfig],
+    [project, bump, env, projectConfig, releaserConfig, packageBumps],
   )
 
   const handleAIResult = useCallback(
@@ -235,9 +247,36 @@ export function App() {
             packages={workspacePackages}
             onComplete={(config) => {
               setReleaserConfig(config)
-              setPhase('version')
+              if (config.versioning === 'independent' && config.packages) {
+                setPhase('package-select')
+              } else {
+                setPhase('version')
+              }
             }}
             onSkip={() => setPhase('version')}
+          />
+        )}
+        {phase === 'package-select' && releaserConfig?.packages && (
+          <PackageSelect
+            packages={Object.entries(releaserConfig.packages)
+              .filter(([, config]) => config.bump)
+              .map(([relativePath]) => {
+                const wp = workspacePackages.find(p => p.relativePath === relativePath)
+                return {
+                  relativePath,
+                  name: wp?.name || relativePath,
+                  version: wp?.version || project?.version || '0.0.0',
+                }
+              })}
+            onComplete={(selectedBumps) => {
+              setPackageBumps(selectedBumps)
+              if (projectConfig.options.length > 0) {
+                setPhase('options')
+              } else {
+                setPhase('ai')
+              }
+            }}
+            onCancel={handleCancel}
           />
         )}
         {phase === 'version' && project && (
