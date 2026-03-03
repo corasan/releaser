@@ -21,6 +21,16 @@ export function getPipelineSteps(ctx: ReleaseContext): PipelineStep[] {
   }
 }
 
+function getErrorMessage(err: unknown): string {
+  // Bun shell errors have stderr with the actual error output
+  if (err && typeof err === 'object' && 'stderr' in err) {
+    const stderr = (err as { stderr: Buffer }).stderr?.toString().trim()
+    if (stderr) return stderr
+  }
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
 export async function executePipeline(
   steps: PipelineStep[],
   ctx: ReleaseContext,
@@ -41,7 +51,7 @@ export async function executePipeline(
       await step.execute(ctx)
       onStepDone(step.id)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = getErrorMessage(err)
       onStepError(step.id, message)
       return { success: false, failedStep: step.id, error: message }
     }
