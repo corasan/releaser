@@ -94,10 +94,10 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
         return {
           relativePath,
           name: wp?.name || relativePath,
-          version: wp?.version || project?.version || '0.0.0',
+          version: wp?.version || '0.0.0',
         }
       })
-  }, [releaserConfig, workspacePackages, project])
+  }, [releaserConfig, workspacePackages])
 
   const handleDetected = useCallback(
     async (
@@ -113,11 +113,12 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
       const rc = await parseReleaserConfig(cwd)
       setReleaserConfig(rc)
 
-      if (!rc) {
-        const ws = await detectWorkspaces(cwd)
-        if (ws) {
-          const pkgs = await resolveWorkspacePackages(cwd, ws.patterns)
-          setWorkspacePackages(pkgs)
+      const ws = await detectWorkspaces(cwd)
+      if (ws) {
+        const pkgs = await resolveWorkspacePackages(cwd, ws.patterns)
+        setWorkspacePackages(pkgs)
+
+        if (!rc) {
           setPhase('init')
           return
         }
@@ -297,7 +298,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
       {project && phase !== 'detect' && phase !== 'init' && (
         <Box marginBottom={1} flexDirection="column">
           <DetectedBadge project={project} releaserConfig={releaserConfig} />
-          {newVersion && phase !== 'version' && (
+          {newVersion && phase !== 'version' && packageBumps.length === 0 && (
             <Box gap={1}>
               <Text color="green">✔</Text>
               <Text>
@@ -309,6 +310,21 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
                   <Text dimColor> ({preRelease})</Text>
                 )}
               </Text>
+            </Box>
+          )}
+          {packageBumps.length > 0 && phase !== 'package-select' && (
+            <Box flexDirection="column">
+              {packageBumps.map(b => (
+                <Box key={b.relativePath} gap={1}>
+                  <Text color="green">✔</Text>
+                  <Text>
+                    {b.name}:{' '}
+                    <Text color="cyan" bold>
+                      {b.currentVersion} → {b.newVersion}
+                    </Text>
+                  </Text>
+                </Box>
+              ))}
             </Box>
           )}
           {changelog && phase !== 'ai' && (
