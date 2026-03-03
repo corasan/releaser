@@ -8,6 +8,7 @@ import type {
   DetectedEnv,
   ParsedProjectConfig,
   ProjectInfo,
+  ReleaserConfig,
 } from '../lib/types.js'
 
 interface DetectPhaseProps {
@@ -74,7 +75,31 @@ export function DetectPhase({ cwd, onDetected, onError }: DetectPhaseProps) {
   )
 }
 
-export function DetectedBadge({ project }: { project: ProjectInfo }) {
+interface DetectedBadgeProps {
+  project: ProjectInfo
+  releaserConfig?: ReleaserConfig | null
+}
+
+export function DetectedBadge({ project, releaserConfig }: DetectedBadgeProps) {
+  if (releaserConfig?.packages) {
+    const packageCount = Object.keys(releaserConfig.packages).length
+    return (
+      <Box gap={1}>
+        <Text color="green">✔</Text>
+        <Text>
+          Detected:{' '}
+          <Text color="cyan" bold>
+            monorepo
+          </Text>
+          <Text dimColor>
+            {' '}
+            — {packageCount} packages (v{project.version})
+          </Text>
+        </Text>
+      </Box>
+    )
+  }
+
   return (
     <Box gap={1}>
       <Text color="green">✔</Text>

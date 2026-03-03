@@ -174,7 +174,7 @@ export function App() {
       {/* Show completed phase badges */}
       {project && phase !== 'detect' && (
         <Box marginBottom={1} flexDirection="column">
-          <DetectedBadge project={project} />
+          <DetectedBadge project={project} releaserConfig={releaserConfig} />
           {bump && phase !== 'version' && (
             <Box gap={1}>
               <Text color="green">✔</Text>
