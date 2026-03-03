@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, jest, test } from 'bun:test'
 import { isMonorepoConfig, parseReleaserConfig, writeReleaserConfig } from './config.js'
 
 describe('parseReleaserConfig', () => {
@@ -49,8 +49,11 @@ describe('parseReleaserConfig', () => {
   test('returns null for malformed JSON', async () => {
     const tmp = `${import.meta.dir}/__fixtures__/malformed`
     await Bun.write(`${tmp}/releaser.json`, '{ invalid json }')
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
     const result = await parseReleaserConfig(tmp)
     expect(result).toBeNull()
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
   })
 
   test('returns null for invalid versioning value', async () => {
@@ -58,8 +61,11 @@ describe('parseReleaserConfig', () => {
     await Bun.write(`${tmp}/releaser.json`, JSON.stringify({
       versioning: 'wrong',
     }))
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
     const result = await parseReleaserConfig(tmp)
     expect(result).toBeNull()
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
   })
 
   test('returns null for non-object packages', async () => {
@@ -67,8 +73,11 @@ describe('parseReleaserConfig', () => {
     await Bun.write(`${tmp}/releaser.json`, JSON.stringify({
       packages: ['a', 'b'],
     }))
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
     const result = await parseReleaserConfig(tmp)
     expect(result).toBeNull()
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
 
