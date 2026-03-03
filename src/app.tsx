@@ -12,6 +12,7 @@ import { DynamicOptions } from './components/dynamic-options.js'
 import { Header } from './components/header.js'
 import { ReleasePhase } from './components/release-phase.js'
 import { VersionSelect } from './components/version-select.js'
+import { InitPhase } from './components/init-phase.js'
 import { parseReleaserConfig } from './lib/config.js'
 import { getPipelineSteps } from './lib/pipelines/index.js'
 import type {
@@ -25,9 +26,15 @@ import type {
   ReleaserConfig,
 } from './lib/types.js'
 import { bumpVersion } from './lib/version.js'
+import {
+  detectWorkspaces,
+  resolveWorkspacePackages,
+  type WorkspacePackage,
+} from './lib/workspace.js'
 
 type Phase =
   | 'detect'
+  | 'init'
   | 'version'
   | 'options'
   | 'ai'
@@ -59,15 +66,12 @@ export function App() {
   const [error, setError] = useState<string>('')
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([])
   const [ctx, setCtx] = useState<ReleaseContext | null>(null)
+  const [workspacePackages, setWorkspacePackages] = useState<WorkspacePackage[]>([])
 
   const cwd = process.cwd()
 
-  useEffect(() => {
-    parseReleaserConfig(cwd).then(setReleaserConfig)
-  }, [cwd])
-
   const handleDetected = useCallback(
-    (
+    async (
       proj: ProjectInfo,
       detectedEnv: DetectedEnv,
       config: ParsedProjectConfig,
@@ -75,9 +79,24 @@ export function App() {
       setProject(proj)
       setEnv(detectedEnv)
       setProjectConfig(config)
+
+      // Check for monorepo init flow
+      const rc = await parseReleaserConfig(cwd)
+      setReleaserConfig(rc)
+
+      if (!rc) {
+        const ws = await detectWorkspaces(cwd)
+        if (ws) {
+          const pkgs = await resolveWorkspacePackages(cwd, ws.patterns)
+          setWorkspacePackages(pkgs)
+          setPhase('init')
+          return
+        }
+      }
+
       setPhase('version')
     },
-    [],
+    [cwd],
   )
 
   const handleDetectError = useCallback(
@@ -172,7 +191,7 @@ export function App() {
       <Header />
 
       {/* Show completed phase badges */}
-      {project && phase !== 'detect' && (
+      {project && phase !== 'detect' && phase !== 'init' && (
         <Box marginBottom={1} flexDirection="column">
           <DetectedBadge project={project} releaserConfig={releaserConfig} />
           {bump && phase !== 'version' && (
@@ -208,6 +227,17 @@ export function App() {
             cwd={cwd}
             onDetected={handleDetected}
             onError={handleDetectError}
+          />
+        )}
+        {phase === 'init' && workspacePackages.length > 0 && (
+          <InitPhase
+            cwd={cwd}
+            packages={workspacePackages}
+            onComplete={(config) => {
+              setReleaserConfig(config)
+              setPhase('version')
+            }}
+            onSkip={() => setPhase('version')}
           />
         )}
         {phase === 'version' && project && (
