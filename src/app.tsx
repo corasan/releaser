@@ -148,7 +148,7 @@ export function App() {
         project: project!,
         bump: effectiveBump,
         newVersion: effectiveVersion,
-        tag: isIndependent ? packageBumps.map(b => `${b.name}@${b.newVersion}`).join(', ') : `v${effectiveVersion}`,
+        tag: isIndependent ? `${packageBumps[0].name}@${packageBumps[0].newVersion}` : `v${effectiveVersion}`,
         env,
         answers: finalAnswers,
         projectConfig,

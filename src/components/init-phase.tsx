@@ -64,7 +64,7 @@ export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps)
     const publish = item.value === 'npm' ? 'npm' : false
     const newConfigs = {
       ...packageConfigs,
-      [pkg.name]: { bump: true, publish } as PackageConfig,
+      [pkg.relativePath]: { bump: true, publish } as PackageConfig,
     }
     setPackageConfigs(newConfigs)
 

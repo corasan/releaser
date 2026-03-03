@@ -199,13 +199,26 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
   })
 
   if (ctx.env.hasGhCli) {
-    steps.push({
-      id: 'github-release',
-      label: 'Create GitHub release',
-      execute: async ctx => {
-        await createGitHubRelease(ctx.tag, ctx.changelog)
-      },
-    })
+    if (ctx.packageBumps) {
+      for (const b of ctx.packageBumps) {
+        const tag = `${b.name}@${b.newVersion}`
+        steps.push({
+          id: `github-release-${b.relativePath.replace(/\//g, '-')}`,
+          label: `Create GitHub release for ${b.name}@${b.newVersion}`,
+          execute: async ctx => {
+            await createGitHubRelease(tag, ctx.changelog)
+          },
+        })
+      }
+    } else {
+      steps.push({
+        id: 'github-release',
+        label: 'Create GitHub release',
+        execute: async ctx => {
+          await createGitHubRelease(ctx.tag, ctx.changelog)
+        },
+      })
+    }
   }
 
   steps.push({
