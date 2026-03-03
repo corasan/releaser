@@ -1,4 +1,5 @@
 import { Box, Text } from 'ink'
+import pckg from '../../package.json'
 
 export function Header() {
   return (
@@ -16,7 +17,7 @@ export function Header() {
         <Text color="white" bold>
           {' Releaser'}
         </Text>
-        <Text dimColor> v0.1.0</Text>
+        <Text dimColor> v${pckg.version}</Text>
         <Text color="cyan" bold>
           {'              ║'}
         </Text>
