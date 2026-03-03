@@ -235,7 +235,9 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
           id: `github-release-${b.relativePath.replace(/\//g, '-')}`,
           label: `Create GitHub release for ${b.name}@${b.newVersion}`,
           execute: async ctx => {
-            const notes = ctx.releaserConfig?.aiReleaseNotes ? ctx.changelog : undefined
+            const notes = ctx.releaserConfig?.aiReleaseNotes
+              ? (ctx.packageChangelogs?.[b.relativePath] ?? ctx.changelog)
+              : undefined
             return await createGitHubRelease(tag, notes, !!ctx.preRelease)
           },
         })

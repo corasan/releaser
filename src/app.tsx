@@ -229,7 +229,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
 
   // Build release context and advance to confirm
   const buildContextAndConfirm = useCallback(
-    (finalChangelog: string | null, finalAnswers: Answers) => {
+    (finalChangelog: string | null, finalAnswers: Answers, finalPackageChangelogs?: Record<string, string>) => {
       setChangelog(finalChangelog)
       const isIndependent = packageBumps.length > 0
       const effectiveBump = isIndependent ? packageBumps[0].bump : bump!
@@ -244,6 +244,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
         projectConfig,
         releaserConfig,
         changelog: finalChangelog || undefined,
+        packageChangelogs: finalPackageChangelogs,
         preRelease,
         packageBumps: isIndependent ? packageBumps : undefined,
       }
@@ -256,8 +257,8 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
   )
 
   const handleAIResult = useCallback(
-    (generatedChangelog: string | null) => {
-      buildContextAndConfirm(generatedChangelog, answers)
+    (generatedChangelog: string | null, pkgChangelogs?: Record<string, string>) => {
+      buildContextAndConfirm(generatedChangelog, answers, pkgChangelogs)
     },
     [answers, buildContextAndConfirm],
   )
@@ -386,7 +387,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
           />
         )}
         {phase === 'ai' && (
-          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} releaserConfig={releaserConfig} cwd={cwd} />
+          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} releaserConfig={releaserConfig} cwd={cwd} packageBumps={packageBumps.length > 0 ? packageBumps : undefined} />
         )}
         {phase === 'confirm' && ctx && (
           <ConfirmPhase

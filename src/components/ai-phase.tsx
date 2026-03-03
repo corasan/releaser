@@ -4,14 +4,22 @@ import Spinner from 'ink-spinner'
 import { useEffect, useState } from 'react'
 import { generateChangelogWithAI, isAIAvailable } from '../lib/ai.js'
 import { writeReleaserConfig } from '../lib/config.js'
-import { getCommitsSinceLastTag } from '../lib/git.js'
-import type { ReleaserConfig } from '../lib/types.js'
+import {
+  getCommitsSinceLastTag,
+  getCommitsSinceLastTagForPath,
+  getLastTag,
+} from '../lib/git.js'
+import type { PackageBump, ReleaserConfig } from '../lib/types.js'
 
 interface AIPhaseProps {
-  onResult: (changelog: string | null) => void
+  onResult: (
+    changelog: string | null,
+    packageChangelogs?: Record<string, string>,
+  ) => void
   onSkip: () => void
   releaserConfig: ReleaserConfig | null
   cwd: string
+  packageBumps?: PackageBump[]
 }
 
 function Indicator({ isSelected }: { isSelected?: boolean }) {
@@ -32,12 +40,33 @@ function Item({ isSelected, label }: { isSelected?: boolean; label: string }) {
   )
 }
 
-export function AIPhase({ onResult, onSkip, releaserConfig, cwd }: AIPhaseProps) {
+export function AIPhase({ onResult, onSkip, releaserConfig, cwd, packageBumps }: AIPhaseProps) {
   const [state, setState] = useState<
     'checking' | 'ask' | 'ask-changelog' | 'generating' | 'unavailable'
   >('checking')
   const [commits, setCommits] = useState<string[]>([])
   const [hasChangelogFile, setHasChangelogFile] = useState(false)
+
+  async function generateChangelogs(
+    globalCommits: string[],
+  ): Promise<[string | null, Record<string, string> | undefined]> {
+    if (!packageBumps || packageBumps.length === 0) {
+      return [await generateChangelogWithAI(globalCommits), undefined]
+    }
+    const lastTag = await getLastTag()
+    const pkgChangelogs: Record<string, string> = {}
+    const [globalChangelog] = await Promise.all([
+      generateChangelogWithAI(globalCommits),
+      ...packageBumps.map(async b => {
+        const pkgCommits = await getCommitsSinceLastTagForPath(b.relativePath, lastTag)
+        if (pkgCommits.length > 0) {
+          const cl = await generateChangelogWithAI(pkgCommits)
+          if (cl) pkgChangelogs[b.relativePath] = cl
+        }
+      }),
+    ])
+    return [globalChangelog, Object.keys(pkgChangelogs).length > 0 ? pkgChangelogs : undefined]
+  }
 
   useEffect(() => {
     async function check() {
@@ -117,8 +146,8 @@ export function AIPhase({ onResult, onSkip, releaserConfig, cwd }: AIPhaseProps)
               writeReleaserConfig(cwd, updated)
             }
             setState('generating')
-            generateChangelogWithAI(commits).then(changelog => {
-              onResult(changelog)
+            generateChangelogs(commits).then(([changelog, pkgChangelogs]) => {
+              onResult(changelog, pkgChangelogs)
             })
           }}
           indicatorComponent={Indicator}
@@ -153,8 +182,8 @@ export function AIPhase({ onResult, onSkip, releaserConfig, cwd }: AIPhaseProps)
               return
             }
             setState('generating')
-            generateChangelogWithAI(commits).then(changelog => {
-              onResult(changelog)
+            generateChangelogs(commits).then(([changelog, pkgChangelogs]) => {
+              onResult(changelog, pkgChangelogs)
             })
           } else {
             onSkip()

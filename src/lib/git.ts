@@ -1,18 +1,41 @@
 import { $ } from 'bun'
 
-export async function getCommitsSinceLastTag(): Promise<string[]> {
+export async function getLastTag(): Promise<string | null> {
   try {
-    const lastTag = (
+    const tag = (
       await $`git describe --tags --abbrev=0 2>/dev/null`.text()
     ).trim()
-    if (!lastTag) throw new Error('No tags')
-    const log = await $`git log ${lastTag}..HEAD --oneline`.text()
-    return log.trim().split('\n').filter(Boolean)
+    return tag || null
   } catch {
-    // No tags yet, get all commits
-    const log = await $`git log --oneline -50`.text()
+    return null
+  }
+}
+
+async function getCommitsSince(
+  lastTag: string | null,
+  path?: string,
+): Promise<string[]> {
+  const pathArgs = path ? ['--', path] : []
+  if (lastTag) {
+    const log =
+      await $`git log ${lastTag}..HEAD --oneline ${pathArgs}`.text()
     return log.trim().split('\n').filter(Boolean)
   }
+  const log = await $`git log --oneline -50 ${pathArgs}`.text()
+  return log.trim().split('\n').filter(Boolean)
+}
+
+export async function getCommitsSinceLastTag(): Promise<string[]> {
+  const lastTag = await getLastTag()
+  return getCommitsSince(lastTag)
+}
+
+export async function getCommitsSinceLastTagForPath(
+  relativePath: string,
+  lastTag?: string | null,
+): Promise<string[]> {
+  const tag = lastTag !== undefined ? lastTag : await getLastTag()
+  return getCommitsSince(tag, relativePath)
 }
 
 export async function getCurrentBranch(): Promise<string> {

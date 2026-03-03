@@ -88,6 +88,7 @@ export interface ReleaseContext {
   projectConfig: ParsedProjectConfig
   releaserConfig: ReleaserConfig | null
   changelog?: string
+  packageChangelogs?: Record<string, string>
   preRelease?: PreReleaseChannel
   packageBumps?: PackageBump[]
 }
