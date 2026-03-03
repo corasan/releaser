@@ -1,19 +1,20 @@
 #!/usr/bin/env bun
 
 import { render } from 'ink'
+import pckg from '../package.json'
 import { App } from './app.js'
 import type { Bump, PreReleaseChannel } from './lib/types.js'
 
 // Handle --version flag
 if (process.argv.includes('--version') || process.argv.includes('-v')) {
-  console.log('releaser v0.1.0')
+  console.log(`releaser v${pckg.version}`)
   process.exit(0)
 }
 
 // Handle --help flag
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`
-  ⚡ Releaser v0.1.0
+  ⚡ Releaser v${pckg.version}
 
   Zero-config release CLI. Reads your project files and figures out the rest.
 
@@ -71,14 +72,18 @@ if (channelFlags.length > 1) {
 }
 
 if (flags.bump && channelFlags.length > 0) {
-  console.error('Error: --bump cannot be combined with --alpha, --beta, or --rc')
+  console.error(
+    'Error: --bump cannot be combined with --alpha, --beta, or --rc',
+  )
   process.exit(1)
 }
 
 const bumpFlags = [flags.patch, flags.minor, flags.major].filter(Boolean)
 
 if (flags.bump && bumpFlags.length > 0) {
-  console.error('Error: --bump cannot be combined with --patch, --minor, or --major')
+  console.error(
+    'Error: --bump cannot be combined with --patch, --minor, or --major',
+  )
   process.exit(1)
 }
 if (bumpFlags.length > 1) {
@@ -99,4 +104,6 @@ else if (flags.major) cliBump = 'major'
 
 const cliBumpFlag = flags.bump
 
-render(<App cliChannel={cliChannel} cliBump={cliBump} cliBumpFlag={cliBumpFlag} />)
+render(
+  <App cliChannel={cliChannel} cliBump={cliBump} cliBumpFlag={cliBumpFlag} />,
+)
