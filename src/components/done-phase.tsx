@@ -16,6 +16,7 @@ export function DonePhase({ ctx, releaseUrl }: DonePhaseProps) {
         borderColor="green"
         paddingX={2}
         paddingY={1}
+        alignSelf="flex-start"
       >
         <Box gap={1}>
           <Text color="green" bold>
