@@ -1,8 +1,8 @@
 import { Box, Text, useInput } from 'ink'
 import SelectInput from 'ink-select-input'
 import { useState } from 'react'
-import type { Bump, PackageBump } from '../lib/types.js'
-import { bumpVersion, previewVersions } from '../lib/version.js'
+import type { Bump, PackageBump, PreReleaseChannel } from '../lib/types.js'
+import { bumpPreRelease, bumpToStable, bumpVersion, getPreReleaseBumpItems, isPreRelease, parseVersion, previewVersions } from '../lib/version.js'
 import { Indicator, ItemComponent } from './select-components.js'
 
 interface PackageInfo {
@@ -57,25 +57,52 @@ export function PackageSelect({ packages, onComplete, onCancel }: PackageSelectP
     }
   })
 
-  const handleBumpSelect = (item: { value: string }) => {
-    const pkg = selectedPackages[currentBumpIndex]
-    const bump = item.value as Bump
-    const newBump: PackageBump = {
-      relativePath: pkg.relativePath,
-      name: pkg.name,
-      bump,
-      currentVersion: pkg.version,
-      newVersion: bumpVersion(pkg.version, bump),
-    }
-
-    const newBumps = [...bumps, newBump]
-    setBumps(newBumps)
-
+  const advanceOrComplete = (newBumps: PackageBump[]) => {
     if (currentBumpIndex + 1 < selectedPackages.length) {
       setCurrentBumpIndex(currentBumpIndex + 1)
     } else {
       onComplete(newBumps)
     }
+  }
+
+  const handleBumpSelect = (item: { value: string }) => {
+    const pkg = selectedPackages[currentBumpIndex]
+    const version = pkg.version
+
+    let newVersion: string
+    let bump: Bump
+    let preRelease: PreReleaseChannel | undefined
+
+    if (item.value === 'bump-pre') {
+      const channel = parseVersion(version).preRelease!.channel
+      newVersion = bumpPreRelease(version, null, channel)
+      bump = 'patch'
+      preRelease = channel
+    } else if (item.value === 'stable') {
+      newVersion = bumpToStable(version)
+      bump = 'patch'
+    } else if (['alpha', 'beta', 'rc'].includes(item.value)) {
+      const ch = item.value as PreReleaseChannel
+      newVersion = bumpPreRelease(version, null, ch)
+      bump = 'patch'
+      preRelease = ch
+    } else {
+      bump = item.value as Bump
+      newVersion = bumpVersion(version, bump)
+    }
+
+    const newBump: PackageBump = {
+      relativePath: pkg.relativePath,
+      name: pkg.name,
+      bump,
+      currentVersion: version,
+      newVersion,
+      preRelease,
+    }
+
+    const newBumps = [...bumps, newBump]
+    setBumps(newBumps)
+    advanceOrComplete(newBumps)
   }
 
   if (step === 'select') {
@@ -103,12 +130,20 @@ export function PackageSelect({ packages, onComplete, onCancel }: PackageSelectP
 
   // step === 'bump'
   const pkg = selectedPackages[currentBumpIndex]
-  const versions = previewVersions(pkg.version)
-  const bumpItems = (['patch', 'minor', 'major'] as const).map(b => ({
-    key: b,
-    label: `${b.padEnd(6)} ${pkg.version} -> ${versions[b]}`,
-    value: b,
-  }))
+  const pkgIsPreRelease = isPreRelease(pkg.version)
+
+  let bumpItems: { key: string; label: string; value: string }[]
+
+  if (pkgIsPreRelease) {
+    bumpItems = getPreReleaseBumpItems(pkg.version)
+  } else {
+    const versions = previewVersions(pkg.version)
+    bumpItems = (['patch', 'minor', 'major'] as const).map(b => ({
+      key: b,
+      label: `${b.padEnd(6)} ${pkg.version} -> ${versions[b]}`,
+      value: b,
+    }))
+  }
 
   return (
     <Box flexDirection="column">

@@ -5,6 +5,7 @@ import type { Bump, PreReleaseChannel, ProjectInfo } from '../lib/types.js'
 import {
   bumpPreRelease,
   bumpToStable,
+  getPreReleaseBumpItems,
   isPreRelease,
   parseVersion,
   previewVersions,
@@ -53,37 +54,8 @@ export function VersionSelect({
 
   // ── Pre-release version: simplified menu ──
   if (currentIsPreRelease) {
-    const parsed = parseVersion(project.version)
-    const channel = parsed.preRelease!.channel
-    const baseVersion = `${parsed.major}.${parsed.minor}.${parsed.patch}`
-
-    const items: { key: string; label: string; value: string }[] = []
-
-    // Bump same channel
-    items.push({
-      key: 'bump',
-      label: `Bump ${channel}    ${project.version} → ${bumpPreRelease(project.version, null, channel)}`,
-      value: 'bump',
-    })
-
-    // Promote to next channel(s)
-    const channels: PreReleaseChannel[] = ['alpha', 'beta', 'rc']
-    const currentIdx = channels.indexOf(channel)
-    for (let i = currentIdx + 1; i < channels.length; i++) {
-      const next = channels[i]
-      items.push({
-        key: next,
-        label: `Promote to ${next}  ${project.version} → ${baseVersion}-${next}.0`,
-        value: next,
-      })
-    }
-
-    // Release stable
-    items.push({
-      key: 'stable',
-      label: `Release stable  ${project.version} → ${baseVersion}`,
-      value: 'stable',
-    })
+    const channel = parseVersion(project.version).preRelease!.channel
+    const items = getPreReleaseBumpItems(project.version)
 
     return (
       <Box flexDirection="column">
@@ -93,7 +65,7 @@ export function VersionSelect({
         <SelectInput
           items={items}
           onSelect={item => {
-            if (item.value === 'bump') {
+            if (item.value === 'bump-pre') {
               const newVer = bumpPreRelease(project.version, null, channel)
               onSelect('patch', newVer, channel)
             } else if (item.value === 'stable') {

@@ -93,7 +93,7 @@ export function DetectedBadge({ project, releaserConfig }: DetectedBadgeProps) {
           </Text>
           <Text dimColor>
             {' '}
-            — {packageCount} packages (v{project.version})
+            — {packageCount} packages{releaserConfig?.versioning !== 'independent' && ` (v${project.version})`}
           </Text>
         </Text>
       </Box>

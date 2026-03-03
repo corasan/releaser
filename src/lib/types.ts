@@ -75,6 +75,7 @@ export interface PackageBump {
   bump: Bump
   currentVersion: string
   newVersion: string
+  preRelease?: PreReleaseChannel
 }
 
 export interface ReleaseContext {

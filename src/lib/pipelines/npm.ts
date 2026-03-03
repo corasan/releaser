@@ -37,13 +37,14 @@ function addNpmPublishSteps(steps: PipelineStep[], ctx: ReleaseContext) {
     const publishable = new Set(getPublishablePackages(ctx.releaserConfig.packages))
     for (const b of ctx.packageBumps) {
       if (publishable.has(b.relativePath)) {
+        const tag = b.preRelease || ctx.preRelease
         steps.push({
           id: `npm-publish-${b.relativePath.replace(/\//g, '-')}`,
-          label: ctx.preRelease
-            ? `Publish ${b.name}@${b.newVersion} (tag: ${ctx.preRelease})`
+          label: tag
+            ? `Publish ${b.name}@${b.newVersion} (tag: ${tag})`
             : `Publish ${b.name}@${b.newVersion}`,
-          execute: async ctx => {
-            await npmPublish(join(ctx.project.path, b.relativePath), ctx.preRelease)
+          execute: async () => {
+            await npmPublish(join(ctx.project.path, b.relativePath), tag)
           },
         })
       }

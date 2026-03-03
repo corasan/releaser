@@ -79,3 +79,45 @@ export function previewVersions(current: string): Record<Bump, string> {
 export function isValidVersion(version: string): boolean {
   return /^\d+\.\d+\.\d+(-(?:alpha|beta|rc)\.\d+)?$/.test(version)
 }
+
+export interface BumpItem {
+  key: string
+  label: string
+  value: string
+}
+
+/** Build menu items for bumping a pre-release version */
+export function getPreReleaseBumpItems(version: string): BumpItem[] {
+  const parsed = parseVersion(version)
+  const channel = parsed.preRelease!.channel
+  const baseVersion = `${parsed.major}.${parsed.minor}.${parsed.patch}`
+  const items: BumpItem[] = []
+
+  // Bump same channel
+  items.push({
+    key: 'bump-pre',
+    label: `Bump ${channel}    ${version} → ${bumpPreRelease(version, null, channel)}`,
+    value: 'bump-pre',
+  })
+
+  // Promote to next channel(s)
+  const channels: PreReleaseChannel[] = ['alpha', 'beta', 'rc']
+  const currentIdx = channels.indexOf(channel)
+  for (let i = currentIdx + 1; i < channels.length; i++) {
+    const next = channels[i]
+    items.push({
+      key: next,
+      label: `Promote to ${next}  ${version} → ${baseVersion}-${next}.0`,
+      value: next,
+    })
+  }
+
+  // Release stable
+  items.push({
+    key: 'stable',
+    label: `Release stable  ${version} → ${baseVersion}`,
+    value: 'stable',
+  })
+
+  return items
+}
