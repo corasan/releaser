@@ -1,0 +1,12 @@
+{
+  "versioning": "independent",
+  "packages": {
+    "packages/core": {
+      "bump": true,
+      "publish": "npm"
+    }
+  },
+  "hooks": {
+    "preBump": "echo test"
+  }
+}

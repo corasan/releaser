@@ -83,3 +83,28 @@ export interface CompletedPhase {
   label: string
   value: string
 }
+
+// ─── Releaser config (releaser.json) ─────────────────────────────
+
+export type VersioningStrategy = 'synchronized' | 'independent'
+
+export type PublishTarget = false | 'npm'
+
+export interface PackageConfig {
+  bump: boolean
+  publish: PublishTarget
+}
+
+export type HookName =
+  | 'preBump'
+  | 'postBump'
+  | 'prePublish'
+  | 'postPublish'
+  | 'preRelease'
+  | 'postRelease'
+
+export interface ReleaserConfig {
+  versioning?: VersioningStrategy
+  packages?: Record<string, PackageConfig>
+  hooks?: Partial<Record<HookName, string>>
+}

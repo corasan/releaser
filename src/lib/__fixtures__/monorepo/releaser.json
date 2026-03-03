@@ -1,0 +1,1 @@
+{"versioning":"synchronized","packages":{"packages/sdk":{"bump":true,"publish":"npm"},"packages/server":{"bump":true,"publish":false}},"hooks":{"prePublish":"bun run build"}}

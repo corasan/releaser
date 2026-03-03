@@ -1,0 +1,1 @@
+{"hooks":{"preBump":"echo hello"}}
