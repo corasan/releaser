@@ -68,7 +68,7 @@ async function generateReleaseNotes(): Promise<string | null> {
       const commits = log.trim().split('\n').filter(Boolean)
       if (commits.length === 0) return null
       // Exclude the release commit itself
-      const lines = commits.slice(1).map(c => `- ${c.replace(/^[a-f0-9]+ /, '')}`)
+      const lines = commits.slice(1).map(c => formatCommitLine(c))
       return lines.length > 0 ? `## What's Changed\n\n${lines.join('\n')}` : null
     }
     const [currentTag, previousTag] = tags
@@ -78,11 +78,20 @@ async function generateReleaseNotes(): Promise<string | null> {
     // Exclude the release commit itself (first one, "chore: release vX.Y.Z")
     const meaningful = commits.filter(c => !c.match(/^[a-f0-9]+ chore: release /))
     if (meaningful.length === 0) return null
-    const lines = meaningful.map(c => `- ${c.replace(/^[a-f0-9]+ /, '')}`)
+    const lines = meaningful.map(c => formatCommitLine(c))
     return `## What's Changed\n\n${lines.join('\n')}`
   } catch {
     return null
   }
+}
+
+/** Format a git oneline commit as a release note line with commit link.
+ *  GitHub auto-links short SHAs and #N PR references in release notes. */
+function formatCommitLine(oneline: string): string {
+  const match = oneline.match(/^([a-f0-9]+) (.+)$/)
+  if (!match) return `- ${oneline}`
+  const [, sha, message] = match
+  return `- ${message} (${sha})`
 }
 
 export async function isGitRepo(): Promise<boolean> {
