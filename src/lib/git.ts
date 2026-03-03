@@ -52,16 +52,16 @@ export async function commitRelease(
   message: string,
   tags: string | string[],
 ): Promise<void> {
-  await $`git add ${files}`
-  await $`git commit -m ${message}`
+  await $`git add ${files}`.quiet()
+  await $`git commit -m ${message}`.quiet()
   const tagList = Array.isArray(tags) ? tags : [tags]
   for (const tag of tagList) {
-    await $`git tag ${tag}`
+    await $`git tag ${tag}`.quiet()
   }
 }
 
 export async function pushWithTags(branch: string): Promise<void> {
-  await $`git push origin ${branch} --tags`
+  await $`git push origin ${branch} --tags`.quiet()
 }
 
 export async function createGitHubRelease(

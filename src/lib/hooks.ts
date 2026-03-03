@@ -9,5 +9,5 @@ export async function runHook(
   const command = config?.hooks?.[name]
   if (!command) return
 
-  await $`sh -c ${command}`.cwd(cwd)
+  await $`sh -c ${command}`.cwd(cwd).quiet()
 }

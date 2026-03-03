@@ -23,7 +23,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'test',
       label: 'Run tests',
       execute: async ctx => {
-        await $`bun run test`.cwd(ctx.project.path)
+        await $`bun run test`.cwd(ctx.project.path).quiet()
       },
     })
   }
@@ -33,7 +33,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'eas-setup',
       label: 'Configure EAS Build',
       execute: async ctx => {
-        await $`bunx eas-cli build:configure`.cwd(ctx.project.path)
+        await $`bunx eas-cli build:configure`.cwd(ctx.project.path).quiet()
       },
     })
   }
@@ -150,7 +150,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
           : `Release ${ctx.tag}`
         await $`bunx eas-cli update --channel ${ch} --message ${msg} --non-interactive`.cwd(
           ctx.project.path,
-        )
+        ).quiet()
       },
     })
   } else {
@@ -169,7 +169,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
           'production'
         await $`bunx eas-cli build --platform ${p} --profile ${prof} --non-interactive`.cwd(
           ctx.project.path,
-        )
+        ).quiet()
       },
     })
 
@@ -184,7 +184,7 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
             'all'
           await $`bunx eas-cli submit --platform ${p} --non-interactive`.cwd(
             ctx.project.path,
-          )
+          ).quiet()
         },
       })
     }

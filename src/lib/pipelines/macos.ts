@@ -34,11 +34,11 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
         throw new Error('Could not find Info.plist in project')
       }
 
-      await $`/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${ctx.newVersion}" ${infoPlist}`
+      await $`/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${ctx.newVersion}" ${infoPlist}`.quiet()
       const buildNum =
         await $`/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ${infoPlist}`.text()
       const newBuild = Number.parseInt(buildNum.trim() || '0', 10) + 1
-      await $`/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${newBuild}" ${infoPlist}`
+      await $`/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${newBuild}" ${infoPlist}`.quiet()
     },
   })
 
@@ -77,14 +77,14 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
     id: 'commit-tag',
     label: 'Commit and create tag',
     execute: async ctx => {
-      await $`git add -u`.cwd(ctx.project.path)
+      await $`git add -u`.cwd(ctx.project.path).quiet()
       if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists()) {
-        await $`git add CHANGELOG.md`.cwd(ctx.project.path)
+        await $`git add CHANGELOG.md`.cwd(ctx.project.path).quiet()
       }
       await $`git commit -m ${`chore: release ${ctx.tag}`}`.cwd(
         ctx.project.path,
-      )
-      await $`git tag ${ctx.tag}`.cwd(ctx.project.path)
+      ).quiet()
+      await $`git tag ${ctx.tag}`.cwd(ctx.project.path).quiet()
     },
   })
 
@@ -105,7 +105,7 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
         const s = ctx.answers.scheme || ctx.projectConfig.data.defaultScheme
         await $`xcodebuild -scheme ${s} -configuration Release clean build`.cwd(
           ctx.project.path,
-        )
+        ).quiet()
       },
     })
 
@@ -122,8 +122,8 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
           )
           await $`xcodebuild -scheme ${s} -configuration Release -archivePath ${archivePath} archive`.cwd(
             ctx.project.path,
-          )
-          await $`xcrun notarytool submit ${archivePath} --wait`
+          ).quiet()
+          await $`xcrun notarytool submit ${archivePath} --wait`.quiet()
         },
       })
     }

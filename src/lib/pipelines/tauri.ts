@@ -17,7 +17,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'build-frontend',
       label: 'Build frontend',
       execute: async ctx => {
-        await $`bun run build`.cwd(ctx.project.path)
+        await $`bun run build`.cwd(ctx.project.path).quiet()
       },
     })
   }
@@ -27,7 +27,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'test',
       label: 'Run tests',
       execute: async ctx => {
-        await $`bun run test`.cwd(ctx.project.path)
+        await $`bun run test`.cwd(ctx.project.path).quiet()
       },
     })
   }
@@ -121,7 +121,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'tauri-build',
       label: 'Build Tauri app',
       execute: async ctx => {
-        await $`bunx tauri build`.cwd(ctx.project.path)
+        await $`bunx tauri build`.cwd(ctx.project.path).quiet()
       },
     })
   }

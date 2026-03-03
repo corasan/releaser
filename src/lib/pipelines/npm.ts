@@ -19,9 +19,10 @@ async function npmPublish(cwd: string, tag?: string) {
     stdout: 'pipe',
     stderr: 'pipe',
   })
+  const stderrPromise = new Response(proc.stderr).text()
   const code = await proc.exited
   if (code !== 0) {
-    const stderr = await new Response(proc.stderr).text()
+    const stderr = await stderrPromise
     throw new Error(stderr.trim() || `npm publish exited with code ${code}`)
   }
 }
@@ -101,7 +102,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'build',
       label: 'Run build',
       execute: async ctx => {
-        await $`bun run build`.cwd(ctx.project.path)
+        await $`bun run build`.cwd(ctx.project.path).quiet()
       },
     })
   }
@@ -111,7 +112,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'test',
       label: 'Run tests',
       execute: async ctx => {
-        await $`bun run test`.cwd(ctx.project.path)
+        await $`bun run test`.cwd(ctx.project.path).quiet()
       },
     })
   }
