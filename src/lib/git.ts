@@ -46,19 +46,23 @@ export async function createGitHubRelease(
   notes?: string,
   isPreRelease?: boolean,
 ): Promise<void> {
-  if (notes) {
-    if (isPreRelease) {
-      await $`gh release create ${tag} --prerelease --notes ${notes}`
-    } else {
-      await $`gh release create ${tag} --notes ${notes}`
-    }
+  const releaseNotes = notes || (await generateReleaseNotes())
+  const args = ['gh', 'release', 'create', tag]
+  if (isPreRelease) args.push('--prerelease')
+  if (releaseNotes) {
+    args.push('--notes', releaseNotes)
   } else {
-    if (isPreRelease) {
-      await $`gh release create ${tag} --prerelease --generate-notes`
-    } else {
-      await $`gh release create ${tag} --generate-notes`
-    }
+    args.push('--generate-notes')
   }
+  await $`${args}`
+}
+
+async function generateReleaseNotes(): Promise<string | null> {
+  const commits = await getCommitsSinceLastTag()
+  if (commits.length === 0) return null
+  // Strip leading hash from oneline format (e.g. "abc1234 feat: foo" → "feat: foo")
+  const lines = commits.map(c => `- ${c.replace(/^[a-f0-9]+ /, '')}`)
+  return `## What's Changed\n\n${lines.join('\n')}`
 }
 
 export async function isGitRepo(): Promise<boolean> {
