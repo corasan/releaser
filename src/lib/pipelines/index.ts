@@ -40,7 +40,8 @@ export async function executePipeline(
   onStepDone: (stepId: string, output?: string) => void,
   onStepError: (stepId: string, error: string) => void,
   onStepSkipped: (stepId: string) => void,
-): Promise<{ success: boolean; failedStep?: string; error?: string }> {
+): Promise<{ success: boolean; failedStep?: string; error?: string; outputs?: Record<string, string> }> {
+  const outputs: Record<string, string> = {}
   for (const step of steps) {
     if (step.skip?.(ctx)) {
       onStepSkipped(step.id)
@@ -51,6 +52,7 @@ export async function executePipeline(
 
     try {
       const output = await step.execute(ctx)
+      if (output) outputs[step.id] = output
       onStepDone(step.id, output || undefined)
     } catch (err) {
       const message = getErrorMessage(err)
@@ -59,5 +61,5 @@ export async function executePipeline(
     }
   }
 
-  return { success: true }
+  return { success: true, outputs }
 }

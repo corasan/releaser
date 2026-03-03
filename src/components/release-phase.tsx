@@ -7,7 +7,7 @@ import { StepList } from './step-list.js'
 interface ReleasePhaseProps {
   ctx: ReleaseContext
   pipelineSteps: PipelineStep[]
-  onDone: () => void
+  onDone: (releaseUrl?: string) => void
   onError: (error: string) => void
 }
 
@@ -67,8 +67,10 @@ export function ReleasePhase({
       id => dispatch({ type: 'skipped', id }),
     ).then(result => {
       if (result.success) {
+        const releaseKey = Object.keys(result.outputs ?? {}).find(k => k.startsWith('github-release'))
+        const releaseUrl = releaseKey ? result.outputs?.[releaseKey] : undefined
         // Small delay to show the final checkmark
-        setTimeout(onDone, 300)
+        setTimeout(() => onDone(releaseUrl), 300)
       } else {
         onError(result.error || 'Release failed')
       }

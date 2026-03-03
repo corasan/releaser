@@ -81,6 +81,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
   const [ctx, setCtx] = useState<ReleaseContext | null>(null)
   const [workspacePackages, setWorkspacePackages] = useState<WorkspacePackage[]>([])
   const [packageBumps, setPackageBumps] = useState<PackageBump[]>([])
+  const [releaseUrl, setReleaseUrl] = useState<string | undefined>()
 
   const cwd = process.cwd()
 
@@ -273,7 +274,8 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
     setTimeout(() => exit(), 100)
   }, [exit])
 
-  const handleReleaseDone = useCallback(() => {
+  const handleReleaseDone = useCallback((url?: string) => {
+    setReleaseUrl(url)
     setPhase('done')
     setTimeout(() => exit(), 100)
   }, [exit])
@@ -386,7 +388,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
             onError={handleReleaseError}
           />
         )}
-        {phase === 'done' && ctx && <DonePhase ctx={ctx} />}
+        {phase === 'done' && ctx && <DonePhase ctx={ctx} releaseUrl={releaseUrl} />}
         {phase === 'error' && <ErrorPhase error={error} />}
         {phase === 'cancelled' && <CancelledPhase />}
       </Box>

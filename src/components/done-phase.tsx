@@ -4,9 +4,10 @@ import type { ReleaseContext } from '../lib/types.js'
 
 interface DonePhaseProps {
   ctx: ReleaseContext
+  releaseUrl?: string
 }
 
-export function DonePhase({ ctx }: DonePhaseProps) {
+export function DonePhase({ ctx, releaseUrl }: DonePhaseProps) {
   return (
     <Box flexDirection="column">
       <Box
@@ -36,6 +37,12 @@ export function DonePhase({ ctx }: DonePhaseProps) {
               {ctx.newVersion}
             </Text>
           </Box>
+          {releaseUrl && (
+            <Box gap={1}>
+              <Text dimColor>Release:</Text>
+              <Text color="cyan">{releaseUrl}</Text>
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>
