@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { PackageConfig, ReleaserConfig, VersioningStrategy } from '../lib/types.js'
 import type { WorkspacePackage } from '../lib/workspace.js'
 import { writeReleaserConfig } from '../lib/config.js'
+import { Indicator, ItemComponent } from './select-components.js'
 
 interface InitPhaseProps {
   cwd: string
@@ -13,30 +14,6 @@ interface InitPhaseProps {
 }
 
 type Step = 'confirm' | 'versioning' | 'packages' | 'writing'
-
-function Indicator({ isSelected }: { isSelected?: boolean }) {
-  return (
-    <Box marginRight={1}>
-      <Text color={isSelected ? 'cyan' : undefined}>
-        {isSelected ? '▸' : ' '}
-      </Text>
-    </Box>
-  )
-}
-
-function ItemComponent({
-  isSelected,
-  label,
-}: {
-  isSelected?: boolean
-  label: string
-}) {
-  return (
-    <Text color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
-      {label}
-    </Text>
-  )
-}
 
 export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps) {
   const [step, setStep] = useState<Step>('confirm')

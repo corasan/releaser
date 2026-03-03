@@ -2,7 +2,6 @@ import { join } from 'node:path'
 import { $ } from 'bun'
 import {
   commitRelease,
-  commitReleaseMultiTag,
   createGitHubRelease,
   getCurrentBranch,
   pushWithTags,
@@ -119,8 +118,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
 
       if (ctx.packageBumps) {
         const tags = ctx.packageBumps.map(b => `${b.name}@${b.newVersion}`)
-        const message = `chore: release ${tags.join(', ')}`
-        await commitReleaseMultiTag(files, message, tags)
+        await commitRelease(files, `chore: release ${tags.join(', ')}`, tags)
       } else {
         await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
       }

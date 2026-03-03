@@ -27,25 +27,12 @@ export async function hasUncommittedChanges(): Promise<boolean> {
 export async function commitRelease(
   files: string[],
   message: string,
-  tag: string,
+  tags: string | string[],
 ): Promise<void> {
-  for (const file of files) {
-    await $`git add ${file}`
-  }
+  await $`git add ${files}`
   await $`git commit -m ${message}`
-  await $`git tag ${tag}`
-}
-
-export async function commitReleaseMultiTag(
-  files: string[],
-  message: string,
-  tags: string[],
-): Promise<void> {
-  for (const file of files) {
-    await $`git add ${file}`
-  }
-  await $`git commit -m ${message}`
-  for (const tag of tags) {
+  const tagList = Array.isArray(tags) ? tags : [tags]
+  for (const tag of tagList) {
     await $`git tag ${tag}`
   }
 }

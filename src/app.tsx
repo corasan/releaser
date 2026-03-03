@@ -1,5 +1,5 @@
 import { Box, Text, useApp } from 'ink'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AIPhase } from './components/ai-phase.js'
 import { ConfirmPhase } from './components/confirm-phase.js'
 import { DetectedBadge, DetectPhase } from './components/detect-phase.js'
@@ -74,6 +74,20 @@ export function App() {
 
   const cwd = process.cwd()
 
+  const selectablePackages = useMemo(() => {
+    if (!releaserConfig?.packages) return []
+    return Object.entries(releaserConfig.packages)
+      .filter(([, config]) => config.bump)
+      .map(([relativePath]) => {
+        const wp = workspacePackages.find(p => p.relativePath === relativePath)
+        return {
+          relativePath,
+          name: wp?.name || relativePath,
+          version: wp?.version || project?.version || '0.0.0',
+        }
+      })
+  }, [releaserConfig, workspacePackages, project])
+
   const handleDetected = useCallback(
     async (
       proj: ProjectInfo,
@@ -141,7 +155,7 @@ export function App() {
   const buildContextAndConfirm = useCallback(
     (finalChangelog: string | null, finalAnswers: Answers) => {
       setChangelog(finalChangelog)
-      const isIndependent = packageBumps.length > 0 && releaserConfig?.versioning === 'independent'
+      const isIndependent = packageBumps.length > 0
       const effectiveBump = isIndependent ? packageBumps[0].bump : bump!
       const effectiveVersion = isIndependent ? packageBumps[0].newVersion : bumpVersion(project!.version, bump!)
       const releaseCtx: ReleaseContext = {
@@ -256,18 +270,9 @@ export function App() {
             onSkip={() => setPhase('version')}
           />
         )}
-        {phase === 'package-select' && releaserConfig?.packages && (
+        {phase === 'package-select' && selectablePackages.length > 0 && (
           <PackageSelect
-            packages={Object.entries(releaserConfig.packages)
-              .filter(([, config]) => config.bump)
-              .map(([relativePath]) => {
-                const wp = workspacePackages.find(p => p.relativePath === relativePath)
-                return {
-                  relativePath,
-                  name: wp?.name || relativePath,
-                  version: wp?.version || project?.version || '0.0.0',
-                }
-              })}
+            packages={selectablePackages}
             onComplete={(selectedBumps) => {
               setPackageBumps(selectedBumps)
               if (projectConfig.options.length > 0) {

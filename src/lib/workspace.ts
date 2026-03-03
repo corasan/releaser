@@ -17,25 +17,27 @@ export async function detectWorkspaces(
   cwd: string,
 ): Promise<WorkspaceInfo | null> {
   // Check package.json workspaces (npm/yarn/bun)
-  const pkgPath = join(cwd, 'package.json')
-  if (await Bun.file(pkgPath).exists()) {
-    const pkg = await Bun.file(pkgPath).json()
+  try {
+    const pkg = await Bun.file(join(cwd, 'package.json')).json()
     if (Array.isArray(pkg.workspaces)) {
       return { type: 'npm', patterns: pkg.workspaces }
     }
     if (pkg.workspaces?.packages) {
       return { type: 'npm', patterns: pkg.workspaces.packages }
     }
+  } catch {
+    // No package.json or invalid JSON
   }
 
   // Check pnpm-workspace.yaml
-  const pnpmPath = join(cwd, 'pnpm-workspace.yaml')
-  if (await Bun.file(pnpmPath).exists()) {
-    const content = await Bun.file(pnpmPath).text()
+  try {
+    const content = await Bun.file(join(cwd, 'pnpm-workspace.yaml')).text()
     const patterns = parsePnpmWorkspaceYaml(content)
     if (patterns.length > 0) {
       return { type: 'pnpm', patterns }
     }
+  } catch {
+    // No pnpm-workspace.yaml
   }
 
   return null
@@ -50,15 +52,15 @@ export async function resolveWorkspacePackages(
   for (const pattern of patterns) {
     const glob = new Bun.Glob(`${pattern}/package.json`)
     for await (const match of glob.scan({ cwd, onlyFiles: true })) {
-      const absolutePath = join(cwd, match)
-      const pkg = await Bun.file(absolutePath).json()
       const relativePath = match.replace('/package.json', '')
+      const absolutePath = join(cwd, relativePath)
+      const pkg = await Bun.file(join(cwd, match)).json()
       packages.push({
         name: pkg.name || relativePath,
         version: pkg.version || '0.0.0',
         private: pkg.private || false,
         relativePath,
-        absolutePath: join(cwd, relativePath),
+        absolutePath,
       })
     }
   }

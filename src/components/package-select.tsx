@@ -3,6 +3,7 @@ import SelectInput from 'ink-select-input'
 import { useState } from 'react'
 import type { Bump, PackageBump } from '../lib/types.js'
 import { bumpVersion, previewVersions } from '../lib/version.js'
+import { Indicator, ItemComponent } from './select-components.js'
 
 interface PackageInfo {
   relativePath: string
@@ -17,30 +18,6 @@ interface PackageSelectProps {
 }
 
 type Step = 'select' | 'bump'
-
-function Indicator({ isSelected }: { isSelected?: boolean }) {
-  return (
-    <Box marginRight={1}>
-      <Text color={isSelected ? 'cyan' : undefined}>
-        {isSelected ? '▸' : ' '}
-      </Text>
-    </Box>
-  )
-}
-
-function ItemComponent({
-  isSelected,
-  label,
-}: {
-  isSelected?: boolean
-  label: string
-}) {
-  return (
-    <Text color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
-      {label}
-    </Text>
-  )
-}
 
 export function PackageSelect({ packages, onComplete, onCancel }: PackageSelectProps) {
   const [step, setStep] = useState<Step>('select')
