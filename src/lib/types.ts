@@ -1,5 +1,6 @@
 export type ProjectType = 'npm' | 'expo' | 'tauri' | 'macos' | 'unknown'
 export type Bump = 'patch' | 'minor' | 'major'
+export type PreReleaseChannel = 'alpha' | 'beta' | 'rc'
 
 export interface ProjectInfo {
   type: ProjectType
@@ -86,6 +87,7 @@ export interface ReleaseContext {
   projectConfig: ParsedProjectConfig
   releaserConfig: ReleaserConfig | null
   changelog?: string
+  preRelease?: PreReleaseChannel
   packageBumps?: PackageBump[]
 }
 
