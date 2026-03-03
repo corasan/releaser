@@ -16,11 +16,14 @@ async function npmPublish(cwd: string, tag?: string) {
   const proc = Bun.spawn(args, {
     cwd,
     stdin: 'inherit',
-    stdout: 'inherit',
-    stderr: 'inherit',
+    stdout: 'pipe',
+    stderr: 'pipe',
   })
   const code = await proc.exited
-  if (code !== 0) throw new Error(`npm publish exited with code ${code}`)
+  if (code !== 0) {
+    const stderr = await new Response(proc.stderr).text()
+    throw new Error(stderr.trim() || `npm publish exited with code ${code}`)
+  }
 }
 
 function addNpmPublishSteps(steps: PipelineStep[], ctx: ReleaseContext) {
