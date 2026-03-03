@@ -59,9 +59,5 @@ export async function writeReleaserConfig(
   config: ReleaserConfig,
 ): Promise<void> {
   const configPath = join(cwd, 'releaser.json')
-  const output = {
-    $schema: 'https://unpkg.com/releaser/schema.json',
-    ...config,
-  }
-  await Bun.write(configPath, `${JSON.stringify(output, null, 2)}\n`)
+  await Bun.write(configPath, `${JSON.stringify(config, null, 2)}\n`)
 }

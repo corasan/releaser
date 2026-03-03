@@ -42,9 +42,5 @@
     "tauri",
     "macos"
   ],
-  "files": [
-    "dist",
-    "schema.json"
-  ],
-  "license": "MIT"
+"license": "MIT"
 }

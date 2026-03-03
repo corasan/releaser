@@ -1,5 +1,4 @@
 {
-  "$schema": "https://unpkg.com/releaser/schema.json",
   "versioning": "independent",
   "packages": {
     "packages/core": {
