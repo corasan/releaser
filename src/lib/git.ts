@@ -45,7 +45,7 @@ export async function createGitHubRelease(
   tag: string,
   notes?: string,
   isPreRelease?: boolean,
-): Promise<void> {
+): Promise<string> {
   const releaseNotes = notes || (await generateReleaseNotes())
   const args = ['gh', 'release', 'create', tag]
   if (isPreRelease) args.push('--prerelease')
@@ -54,7 +54,8 @@ export async function createGitHubRelease(
   } else {
     args.push('--generate-notes')
   }
-  await $`${args}`
+  const url = (await $`${args}`.text()).trim()
+  return url
 }
 
 async function generateReleaseNotes(): Promise<string | null> {

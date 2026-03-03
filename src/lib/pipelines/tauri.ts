@@ -131,7 +131,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'github-release',
       label: 'Create GitHub release',
       execute: async ctx => {
-        await createGitHubRelease(ctx.tag, ctx.changelog)
+        return await createGitHubRelease(ctx.tag, ctx.changelog)
       },
     })
   }

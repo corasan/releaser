@@ -37,7 +37,7 @@ export async function executePipeline(
   steps: PipelineStep[],
   ctx: ReleaseContext,
   onStepStart: (stepId: string) => void,
-  onStepDone: (stepId: string) => void,
+  onStepDone: (stepId: string, output?: string) => void,
   onStepError: (stepId: string, error: string) => void,
   onStepSkipped: (stepId: string) => void,
 ): Promise<{ success: boolean; failedStep?: string; error?: string }> {
@@ -50,8 +50,8 @@ export async function executePipeline(
     onStepStart(step.id)
 
     try {
-      await step.execute(ctx)
-      onStepDone(step.id)
+      const output = await step.execute(ctx)
+      onStepDone(step.id, output || undefined)
     } catch (err) {
       const message = getErrorMessage(err)
       onStepError(step.id, message)

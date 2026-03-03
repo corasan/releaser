@@ -7,6 +7,7 @@ interface StepItem {
   label: string
   status: StepStatus
   error?: string
+  output?: string
 }
 
 interface StepListProps {
@@ -26,15 +27,13 @@ function StatusIcon({ status }: { status: StepStatus }) {
       )
     case 'error':
       return <Text color="red">✖</Text>
-    case 'skipped':
-      return <Text dimColor>⊘</Text>
     default:
       return <Text dimColor>○</Text>
   }
 }
 
 function StepRow({ step }: { step: StepItem }) {
-  const dimmed = step.status === 'pending' || step.status === 'skipped'
+  const dimmed = step.status === 'pending'
   return (
     <Box flexDirection="column">
       <Box gap={1}>
@@ -54,6 +53,11 @@ function StepRow({ step }: { step: StepItem }) {
           {step.status === 'running' ? '...' : ''}
         </Text>
       </Box>
+      {step.output && (
+        <Box marginLeft={3}>
+          <Text dimColor>{step.output}</Text>
+        </Box>
+      )}
       {step.error && (
         <Box marginLeft={3}>
           <Text color="red" dimColor>
@@ -76,7 +80,7 @@ export function StepList({ steps, title }: StepListProps) {
         </Box>
       )}
       <Box flexDirection="column" marginLeft={1}>
-        {steps.map(step => (
+        {steps.filter(s => s.status !== 'skipped').map(step => (
           <StepRow key={step.id} step={step} />
         ))}
       </Box>

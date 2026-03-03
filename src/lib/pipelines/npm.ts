@@ -235,7 +235,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
           label: `Create GitHub release for ${b.name}@${b.newVersion}`,
           execute: async ctx => {
             const notes = ctx.releaserConfig?.aiReleaseNotes ? ctx.changelog : undefined
-            await createGitHubRelease(tag, notes, !!ctx.preRelease)
+            return await createGitHubRelease(tag, notes, !!ctx.preRelease)
           },
         })
       }
@@ -245,7 +245,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         label: 'Create GitHub release',
         execute: async ctx => {
           const notes = ctx.releaserConfig?.aiReleaseNotes ? ctx.changelog : undefined
-          await createGitHubRelease(ctx.tag, notes, !!ctx.preRelease)
+          return await createGitHubRelease(ctx.tag, notes, !!ctx.preRelease)
         },
       })
     }

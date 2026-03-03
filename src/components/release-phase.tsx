@@ -16,11 +16,12 @@ interface StepState {
   label: string
   status: StepStatus
   error?: string
+  output?: string
 }
 
 type StepAction =
   | { type: 'start'; id: string }
-  | { type: 'done'; id: string }
+  | { type: 'done'; id: string; output?: string }
   | { type: 'error'; id: string; error: string }
   | { type: 'skipped'; id: string }
 
@@ -31,7 +32,7 @@ function stepsReducer(state: StepState[], action: StepAction): StepState[] {
       case 'start':
         return { ...step, status: 'running' }
       case 'done':
-        return { ...step, status: 'done' }
+        return { ...step, status: 'done', output: action.output }
       case 'error':
         return { ...step, status: 'error', error: action.error }
       case 'skipped':
@@ -61,7 +62,7 @@ export function ReleasePhase({
       pipelineSteps,
       ctx,
       id => dispatch({ type: 'start', id }),
-      id => dispatch({ type: 'done', id }),
+      (id, output) => dispatch({ type: 'done', id, output }),
       (id, error) => dispatch({ type: 'error', id, error }),
       id => dispatch({ type: 'skipped', id }),
     ).then(result => {

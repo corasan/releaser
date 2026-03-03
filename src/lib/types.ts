@@ -65,7 +65,7 @@ export interface ReleaseStep {
 export interface PipelineStep {
   id: string
   label: string
-  execute: (ctx: ReleaseContext) => Promise<void>
+  execute: (ctx: ReleaseContext) => Promise<string | void>
   skip?: (ctx: ReleaseContext) => boolean
 }
 
