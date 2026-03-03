@@ -1,5 +1,5 @@
 import { Box, Text, useApp } from 'ink'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AIPhase } from './components/ai-phase.js'
 import { ConfirmPhase } from './components/confirm-phase.js'
 import { DetectedBadge, DetectPhase } from './components/detect-phase.js'
@@ -12,6 +12,7 @@ import { DynamicOptions } from './components/dynamic-options.js'
 import { Header } from './components/header.js'
 import { ReleasePhase } from './components/release-phase.js'
 import { VersionSelect } from './components/version-select.js'
+import { parseReleaserConfig } from './lib/config.js'
 import { getPipelineSteps } from './lib/pipelines/index.js'
 import type {
   Answers,
@@ -21,6 +22,7 @@ import type {
   PipelineStep,
   ProjectInfo,
   ReleaseContext,
+  ReleaserConfig,
 } from './lib/types.js'
 import { bumpVersion } from './lib/version.js'
 
@@ -53,11 +55,16 @@ export function App() {
   const [bump, setBump] = useState<Bump | null>(null)
   const [answers, setAnswers] = useState<Answers>({})
   const [changelog, setChangelog] = useState<string | null>(null)
+  const [releaserConfig, setReleaserConfig] = useState<ReleaserConfig | null>(null)
   const [error, setError] = useState<string>('')
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([])
   const [ctx, setCtx] = useState<ReleaseContext | null>(null)
 
   const cwd = process.cwd()
+
+  useEffect(() => {
+    parseReleaserConfig(cwd).then(setReleaserConfig)
+  }, [cwd])
 
   const handleDetected = useCallback(
     (
@@ -115,6 +122,7 @@ export function App() {
         env,
         answers: finalAnswers,
         projectConfig,
+        releaserConfig,
         changelog: finalChangelog || undefined,
       }
       const steps = getPipelineSteps(releaseCtx)
@@ -122,7 +130,7 @@ export function App() {
       setCtx(releaseCtx)
       setPhase('confirm')
     },
-    [project, bump, env, projectConfig],
+    [project, bump, env, projectConfig, releaserConfig],
   )
 
   const handleAIResult = useCallback(

@@ -6,6 +6,7 @@ import {
   getCurrentBranch,
   pushWithTags,
 } from '../git.js'
+import { runHook } from '../hooks.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
@@ -32,6 +33,15 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
   }
 
   steps.push({
+    id: 'hook-preBump',
+    label: 'Run preBump hook',
+    execute: async ctx => {
+      await runHook('preBump', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.preBump,
+  })
+
+  steps.push({
     id: 'bump-version',
     label: 'Bump version in package.json',
     execute: async ctx => {
@@ -40,6 +50,15 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       pkg.version = ctx.newVersion
       await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
     },
+  })
+
+  steps.push({
+    id: 'hook-postBump',
+    label: 'Run postBump hook',
+    execute: async ctx => {
+      await runHook('postBump', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.postBump,
   })
 
   steps.push({
@@ -83,6 +102,15 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     },
   })
 
+  steps.push({
+    id: 'hook-prePublish',
+    label: 'Run prePublish hook',
+    execute: async ctx => {
+      await runHook('prePublish', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.prePublish,
+  })
+
   if (!ctx.project.npm?.private) {
     steps.push({
       id: 'npm-publish',
@@ -93,6 +121,24 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     })
   }
 
+  steps.push({
+    id: 'hook-postPublish',
+    label: 'Run postPublish hook',
+    execute: async ctx => {
+      await runHook('postPublish', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.postPublish,
+  })
+
+  steps.push({
+    id: 'hook-preRelease',
+    label: 'Run preRelease hook',
+    execute: async ctx => {
+      await runHook('preRelease', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.preRelease,
+  })
+
   if (ctx.env.hasGhCli) {
     steps.push({
       id: 'github-release',
@@ -102,6 +148,15 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       },
     })
   }
+
+  steps.push({
+    id: 'hook-postRelease',
+    label: 'Run postRelease hook',
+    execute: async ctx => {
+      await runHook('postRelease', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.postRelease,
+  })
 
   return steps
 }

@@ -76,6 +76,7 @@ export interface ReleaseContext {
   env: DetectedEnv
   answers: Answers
   projectConfig: ParsedProjectConfig
+  releaserConfig: ReleaserConfig | null
   changelog?: string
 }
 
