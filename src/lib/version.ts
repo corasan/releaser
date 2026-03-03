@@ -55,19 +55,20 @@ export function bumpToStable(current: string): string {
 }
 
 export function bumpVersion(current: string, bump: Bump): string {
-  const [major, minor, patch] = current.split('.').map(Number)
+  const parsed = parseVersion(current)
   switch (bump) {
     case 'major':
-      return `${major + 1}.0.0`
+      return `${parsed.major + 1}.0.0`
     case 'minor':
-      return `${major}.${minor + 1}.0`
+      return `${parsed.major}.${parsed.minor + 1}.0`
     case 'patch':
-      return `${major}.${minor}.${patch + 1}`
+      return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`
   }
 }
 
 export function previewVersions(current: string): Record<Bump, string> {
-  const base = current.split('-')[0]
+  const parsed = parseVersion(current)
+  const base = `${parsed.major}.${parsed.minor}.${parsed.patch}`
   return {
     patch: bumpVersion(base, 'patch'),
     minor: bumpVersion(base, 'minor'),

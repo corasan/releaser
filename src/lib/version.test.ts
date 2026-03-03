@@ -6,6 +6,7 @@ describe('bumpVersion', () => {
   test('minor', () => expect(bumpVersion('1.2.3', 'minor')).toBe('1.3.0'))
   test('major', () => expect(bumpVersion('1.2.3', 'major')).toBe('2.0.0'))
   test('zeros', () => expect(bumpVersion('0.0.0', 'patch')).toBe('0.0.1'))
+  test('strips pre-release suffix', () => expect(bumpVersion('1.3.0-beta.2', 'patch')).toBe('1.3.1'))
 })
 
 describe('previewVersions', () => {
@@ -20,6 +21,7 @@ describe('previewVersions', () => {
 
 describe('isValidVersion', () => {
   test('valid semver', () => expect(isValidVersion('1.2.3')).toBe(true))
+  test('valid pre-release', () => expect(isValidVersion('1.2.3-beta.0')).toBe(true))
   test('invalid - missing patch', () => expect(isValidVersion('1.2')).toBe(false))
   test('invalid - has prefix', () => expect(isValidVersion('v1.2.3')).toBe(false))
   test('invalid - empty', () => expect(isValidVersion('')).toBe(false))
@@ -45,6 +47,10 @@ describe('parseVersion', () => {
     expect(parseVersion('1.0.0-rc.5')).toEqual({
       major: 1, minor: 0, patch: 0, preRelease: { channel: 'rc', num: 5 },
     })
+  })
+  test('throws on invalid version', () => {
+    expect(() => parseVersion('invalid')).toThrow()
+    expect(() => parseVersion('v1.2.3')).toThrow()
   })
 })
 

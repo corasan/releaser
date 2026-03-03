@@ -76,6 +76,11 @@ if (flags.bump && channelFlags.length > 0) {
 }
 
 const bumpFlags = [flags.patch, flags.minor, flags.major].filter(Boolean)
+
+if (flags.bump && bumpFlags.length > 0) {
+  console.error('Error: --bump cannot be combined with --patch, --minor, or --major')
+  process.exit(1)
+}
 if (bumpFlags.length > 1) {
   console.error('Error: Only one of --patch, --minor, --major can be specified')
   process.exit(1)
