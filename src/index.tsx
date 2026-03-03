@@ -27,6 +27,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     releaser --alpha --patch    Alpha: 1.2.3 → 1.2.4-alpha.0
     releaser --rc               Promote to RC (from pre-release)
     releaser --bump             Bump pre-release: 1.3.0-beta.0 → 1.3.0-beta.1
+    releaser --publish          Retry npm publish only (skip tag/release)
     releaser --version          Show version
     releaser --help             Show this help
 
@@ -62,6 +63,7 @@ const flags = {
   patch: args.includes('--patch'),
   minor: args.includes('--minor'),
   major: args.includes('--major'),
+  publish: args.includes('--publish'),
 }
 
 // Validate mutually exclusive flags
@@ -79,6 +81,11 @@ if (flags.bump && channelFlags.length > 0) {
 }
 
 const bumpFlags = [flags.patch, flags.minor, flags.major].filter(Boolean)
+
+if (flags.publish && (channelFlags.length > 0 || flags.bump || bumpFlags.length > 0)) {
+  console.error('Error: --publish cannot be combined with other flags')
+  process.exit(1)
+}
 
 if (flags.bump && bumpFlags.length > 0) {
   console.error(
@@ -105,5 +112,5 @@ else if (flags.major) cliBump = 'major'
 const cliBumpFlag = flags.bump
 
 render(
-  <App cliChannel={cliChannel} cliBump={cliBump} cliBumpFlag={cliBumpFlag} />,
+  <App cliChannel={cliChannel} cliBump={cliBump} cliBumpFlag={cliBumpFlag} publishOnly={flags.publish} />,
 )

@@ -10,6 +10,85 @@ import { runHook } from '../hooks.js'
 import { bumpMonorepoVersions, bumpMonorepoVersionsIndependent, getPublishablePackages } from '../monorepo.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
+async function npmPublish(cwd: string, tag?: string) {
+  const args = ['npm', 'publish']
+  if (tag) args.push('--tag', tag)
+  const proc = Bun.spawn(args, {
+    cwd,
+    stdin: 'inherit',
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  const code = await proc.exited
+  if (code !== 0) throw new Error(`npm publish exited with code ${code}`)
+}
+
+function addNpmPublishSteps(steps: PipelineStep[], ctx: ReleaseContext) {
+  steps.push({
+    id: 'hook-prePublish',
+    label: 'Run prePublish hook',
+    execute: async ctx => {
+      await runHook('prePublish', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.prePublish,
+  })
+
+  if (ctx.packageBumps && ctx.releaserConfig?.packages) {
+    const publishable = new Set(getPublishablePackages(ctx.releaserConfig.packages))
+    for (const b of ctx.packageBumps) {
+      if (publishable.has(b.relativePath)) {
+        steps.push({
+          id: `npm-publish-${b.relativePath.replace(/\//g, '-')}`,
+          label: ctx.preRelease
+            ? `Publish ${b.name}@${b.newVersion} (tag: ${ctx.preRelease})`
+            : `Publish ${b.name}@${b.newVersion}`,
+          execute: async ctx => {
+            await npmPublish(join(ctx.project.path, b.relativePath), ctx.preRelease)
+          },
+        })
+      }
+    }
+  } else if (ctx.releaserConfig?.packages) {
+    const publishable = getPublishablePackages(ctx.releaserConfig.packages)
+    for (const pkgPath of publishable) {
+      steps.push({
+        id: `npm-publish-${pkgPath.replace(/\//g, '-')}`,
+        label: ctx.preRelease
+          ? `Publish ${pkgPath} (tag: ${ctx.preRelease})`
+          : `Publish ${pkgPath}`,
+        execute: async ctx => {
+          await npmPublish(join(ctx.project.path, pkgPath), ctx.preRelease)
+        },
+      })
+    }
+  } else if (ctx.project.npm?.publish) {
+    steps.push({
+      id: 'npm-publish',
+      label: ctx.preRelease
+        ? `Publish to npm (tag: ${ctx.preRelease})`
+        : 'Publish to npm',
+      execute: async ctx => {
+        await npmPublish(ctx.project.path, ctx.preRelease)
+      },
+    })
+  }
+
+  steps.push({
+    id: 'hook-postPublish',
+    label: 'Run postPublish hook',
+    execute: async ctx => {
+      await runHook('postPublish', ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.postPublish,
+  })
+}
+
+export function getPublishOnlySteps(ctx: ReleaseContext): PipelineStep[] {
+  const steps: PipelineStep[] = []
+  addNpmPublishSteps(steps, ctx)
+  return steps
+}
+
 export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
   const steps: PipelineStep[] = []
 
@@ -139,77 +218,6 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
   })
 
   steps.push({
-    id: 'hook-prePublish',
-    label: 'Run prePublish hook',
-    execute: async ctx => {
-      await runHook('prePublish', ctx.releaserConfig, ctx.project.path)
-    },
-    skip: ctx => !ctx.releaserConfig?.hooks?.prePublish,
-  })
-
-  if (ctx.packageBumps && ctx.releaserConfig?.packages) {
-    // Independent versioning: only publish selected packages that are publishable
-    const publishable = new Set(getPublishablePackages(ctx.releaserConfig.packages))
-    for (const b of ctx.packageBumps) {
-      if (publishable.has(b.relativePath)) {
-        steps.push({
-          id: `npm-publish-${b.relativePath.replace(/\//g, '-')}`,
-          label: ctx.preRelease
-            ? `Publish ${b.name}@${b.newVersion} (tag: ${ctx.preRelease})`
-            : `Publish ${b.name}@${b.newVersion}`,
-          execute: async ctx => {
-            if (ctx.preRelease) {
-              await $`npm publish --tag ${ctx.preRelease}`.cwd(join(ctx.project.path, b.relativePath))
-            } else {
-              await $`npm publish`.cwd(join(ctx.project.path, b.relativePath))
-            }
-          },
-        })
-      }
-    }
-  } else if (ctx.releaserConfig?.packages) {
-    const publishable = getPublishablePackages(ctx.releaserConfig.packages)
-    for (const pkgPath of publishable) {
-      steps.push({
-        id: `npm-publish-${pkgPath.replace(/\//g, '-')}`,
-        label: ctx.preRelease
-          ? `Publish ${pkgPath} (tag: ${ctx.preRelease})`
-          : `Publish ${pkgPath}`,
-        execute: async ctx => {
-          if (ctx.preRelease) {
-            await $`npm publish --tag ${ctx.preRelease}`.cwd(join(ctx.project.path, pkgPath))
-          } else {
-            await $`npm publish`.cwd(join(ctx.project.path, pkgPath))
-          }
-        },
-      })
-    }
-  } else if (ctx.project.npm?.publish) {
-    steps.push({
-      id: 'npm-publish',
-      label: ctx.preRelease
-        ? `Publish to npm (tag: ${ctx.preRelease})`
-        : 'Publish to npm',
-      execute: async ctx => {
-        if (ctx.preRelease) {
-          await $`npm publish --tag ${ctx.preRelease}`.cwd(ctx.project.path)
-        } else {
-          await $`npm publish`.cwd(ctx.project.path)
-        }
-      },
-    })
-  }
-
-  steps.push({
-    id: 'hook-postPublish',
-    label: 'Run postPublish hook',
-    execute: async ctx => {
-      await runHook('postPublish', ctx.releaserConfig, ctx.project.path)
-    },
-    skip: ctx => !ctx.releaserConfig?.hooks?.postPublish,
-  })
-
-  steps.push({
     id: 'hook-preRelease',
     label: 'Run preRelease hook',
     execute: async ctx => {
@@ -251,6 +259,8 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
     },
     skip: ctx => !ctx.releaserConfig?.hooks?.postRelease,
   })
+
+  addNpmPublishSteps(steps, ctx)
 
   return steps
 }

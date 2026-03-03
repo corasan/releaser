@@ -52,9 +52,10 @@ interface AppProps {
   cliChannel?: PreReleaseChannel
   cliBump?: Bump
   cliBumpFlag?: boolean
+  publishOnly?: boolean
 }
 
-export function App({ cliChannel, cliBump, cliBumpFlag }: AppProps) {
+export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps) {
   const { exit } = useApp()
 
   const [phase, setPhase] = useState<Phase>('detect')
@@ -121,6 +122,28 @@ export function App({ cliChannel, cliBump, cliBumpFlag }: AppProps) {
         }
       }
 
+      if (publishOnly) {
+        const currentVersion = proj.version
+        const channel = isPreRelease(currentVersion) ? getPreReleaseChannel(currentVersion) : undefined
+        const releaseCtx: ReleaseContext = {
+          project: proj,
+          bump: 'patch',
+          newVersion: currentVersion,
+          tag: `v${currentVersion}`,
+          env: detectedEnv,
+          answers: {},
+          projectConfig: config,
+          releaserConfig: rc,
+          preRelease: channel,
+        }
+        const steps = getPipelineSteps(releaseCtx, true)
+        setPipelineSteps(steps)
+        setCtx(releaseCtx)
+        setNewVersion(currentVersion)
+        setPhase('release')
+        return
+      }
+
       if (rc?.versioning === 'independent' && rc.packages) {
         setPhase('package-select')
         return
@@ -170,7 +193,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag }: AppProps) {
 
       setPhase('version')
     },
-    [cwd, cliChannel, cliBump, cliBumpFlag, exit],
+    [cwd, cliChannel, cliBump, cliBumpFlag, publishOnly, exit],
   )
 
   const handleDetectError = useCallback(

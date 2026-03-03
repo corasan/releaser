@@ -1,10 +1,12 @@
 import type { PipelineStep, ReleaseContext } from '../types.js'
 import { getExpoSteps } from './expo.js'
 import { getMacosSteps } from './macos.js'
-import { getNpmSteps } from './npm.js'
+import { getNpmSteps, getPublishOnlySteps } from './npm.js'
 import { getTauriSteps } from './tauri.js'
 
-export function getPipelineSteps(ctx: ReleaseContext): PipelineStep[] {
+export function getPipelineSteps(ctx: ReleaseContext, publishOnly?: boolean): PipelineStep[] {
+  if (publishOnly) return getPublishOnlySteps(ctx)
+
   const type = ctx.project.type
 
   switch (type) {
