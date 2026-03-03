@@ -18,9 +18,16 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   Zero-config release CLI. Reads your project files and figures out the rest.
 
   Usage:
-    releaser              Interactive release flow
-    releaser --version    Show version
-    releaser --help       Show this help
+    releaser                    Interactive release flow
+    releaser --patch            Patch release (skip version select)
+    releaser --minor            Minor release
+    releaser --major            Major release
+    releaser --beta --minor     Pre-release: 1.2.3 → 1.3.0-beta.0
+    releaser --alpha --patch    Alpha: 1.2.3 → 1.2.4-alpha.0
+    releaser --rc               Promote to RC (from pre-release)
+    releaser --bump             Bump pre-release: 1.3.0-beta.0 → 1.3.0-beta.1
+    releaser --version          Show version
+    releaser --help             Show this help
 
   How it works:
     1. Detects your project type from the files in your directory
