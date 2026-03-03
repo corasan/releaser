@@ -23,11 +23,12 @@ import type {
   PackageBump,
   ParsedProjectConfig,
   PipelineStep,
+  PreReleaseChannel,
   ProjectInfo,
   ReleaseContext,
   ReleaserConfig,
 } from './lib/types.js'
-import { bumpVersion } from './lib/version.js'
+import { bumpVersion, isPreRelease } from './lib/version.js'
 import {
   detectWorkspaces,
   resolveWorkspacePackages,
@@ -65,6 +66,8 @@ export function App() {
   const [bump, setBump] = useState<Bump | null>(null)
   const [answers, setAnswers] = useState<Answers>({})
   const [changelog, setChangelog] = useState<string | null>(null)
+  const [newVersion, setNewVersion] = useState<string | null>(null)
+  const [preRelease, setPreRelease] = useState<PreReleaseChannel | undefined>()
   const [releaserConfig, setReleaserConfig] = useState<ReleaserConfig | null>(null)
   const [error, setError] = useState<string>('')
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([])
@@ -132,14 +135,14 @@ export function App() {
   )
 
   const handleVersionSelect = useCallback(
-    (selectedBump: Bump) => {
+    (selectedBump: Bump, selectedNewVersion: string, channel?: PreReleaseChannel) => {
       setBump(selectedBump)
+      setNewVersion(selectedNewVersion)
+      setPreRelease(channel)
 
-      // If project config produced dynamic options, show them
       if (projectConfig.options.length > 0) {
         setPhase('options')
       } else {
-        // No options needed (npm, etc.) — go straight to AI
         setPhase('ai')
       }
     },
@@ -157,7 +160,7 @@ export function App() {
       setChangelog(finalChangelog)
       const isIndependent = packageBumps.length > 0
       const effectiveBump = isIndependent ? packageBumps[0].bump : bump!
-      const effectiveVersion = isIndependent ? packageBumps[0].newVersion : bumpVersion(project!.version, bump!)
+      const effectiveVersion = isIndependent ? packageBumps[0].newVersion : newVersion!
       const releaseCtx: ReleaseContext = {
         project: project!,
         bump: effectiveBump,
@@ -168,6 +171,7 @@ export function App() {
         projectConfig,
         releaserConfig,
         changelog: finalChangelog || undefined,
+        preRelease,
         packageBumps: isIndependent ? packageBumps : undefined,
       }
       const steps = getPipelineSteps(releaseCtx)
@@ -175,7 +179,7 @@ export function App() {
       setCtx(releaseCtx)
       setPhase('confirm')
     },
-    [project, bump, env, projectConfig, releaserConfig, packageBumps],
+    [project, newVersion, preRelease, env, projectConfig, releaserConfig, packageBumps],
   )
 
   const handleAIResult = useCallback(
@@ -220,18 +224,17 @@ export function App() {
       {project && phase !== 'detect' && phase !== 'init' && (
         <Box marginBottom={1} flexDirection="column">
           <DetectedBadge project={project} releaserConfig={releaserConfig} />
-          {bump && phase !== 'version' && (
+          {newVersion && phase !== 'version' && (
             <Box gap={1}>
               <Text color="green">✔</Text>
               <Text>
-                Version bump:{' '}
+                Version:{' '}
                 <Text color="cyan" bold>
-                  {bump}
+                  {project.version} → {newVersion}
                 </Text>
-                <Text dimColor>
-                  {' '}
-                  ({project.version} → {bumpVersion(project.version, bump)})
-                </Text>
+                {preRelease && (
+                  <Text dimColor> ({preRelease})</Text>
+                )}
               </Text>
             </Box>
           )}
