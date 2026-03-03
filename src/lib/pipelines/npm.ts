@@ -180,7 +180,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         },
       })
     }
-  } else if (!ctx.project.npm?.private) {
+  } else if (ctx.project.npm?.publish) {
     steps.push({
       id: 'npm-publish',
       label: ctx.preRelease

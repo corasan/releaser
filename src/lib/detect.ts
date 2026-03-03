@@ -86,6 +86,7 @@ export async function detectProject(cwd: string): Promise<ProjectInfo> {
       path: cwd,
       npm: {
         private: pkg.private || false,
+        publish: pkg.private === false || !!pkg.publishConfig,
         registry: pkg.publishConfig?.registry,
       },
     }

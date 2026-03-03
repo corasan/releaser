@@ -7,7 +7,7 @@ export interface ProjectInfo {
   name: string
   version: string
   path: string
-  npm?: { private: boolean; registry?: string }
+  npm?: { private: boolean; publish: boolean; registry?: string }
   expo?: { easConfigured: boolean; appConfig: string }
   tauri?: { configPath: string; version?: number }
   macos?: { xcodeProject: string; schemes?: string[] }
