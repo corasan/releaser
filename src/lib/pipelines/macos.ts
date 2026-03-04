@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { $ } from 'bun'
 import { createGitHubRelease, getCurrentBranch, pushWithTags } from '../git.js'
+import { createHookStep } from '../hooks.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 async function findInfoPlist(projectPath: string): Promise<string | null> {
@@ -24,6 +25,8 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
   const scheme = ctx.answers.scheme || data.defaultScheme
   const shouldBuild = ctx.answers.build === 'yes'
   const shouldNotarize = ctx.answers.notarize === 'yes'
+
+  steps.push(createHookStep('preBump'))
 
   steps.push({
     id: 'bump-version',
@@ -53,6 +56,8 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
     },
   })
+
+  steps.push(createHookStep('postBump'))
 
   steps.push({
     id: 'changelog',
@@ -129,6 +134,8 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
     }
   }
 
+  steps.push(createHookStep('preRelease'))
+
   if (ctx.env.hasGhCli) {
     steps.push({
       id: 'github-release',
@@ -138,6 +145,8 @@ export function getMacosSteps(ctx: ReleaseContext): PipelineStep[] {
       },
     })
   }
+
+  steps.push(createHookStep('postRelease'))
 
   return steps
 }

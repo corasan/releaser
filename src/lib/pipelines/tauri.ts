@@ -6,6 +6,7 @@ import {
   getCurrentBranch,
   pushWithTags,
 } from '../git.js'
+import { createHookStep } from '../hooks.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
@@ -38,16 +39,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     })
   }
 
-  steps.push({
-    id: 'bump-pkg',
-    label: 'Bump version in package.json',
-    execute: async ctx => {
-      const pkgPath = join(ctx.project.path, 'package.json')
-      const pkg = await Bun.file(pkgPath).json()
-      pkg.version = ctx.newVersion
-      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
-    },
-  })
+  steps.push(createHookStep('preBump'))
 
   steps.push({
     id: 'bump-tauri',
@@ -77,6 +69,20 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       }
     },
   })
+
+  steps.push({
+    id: 'bump-pkg',
+    label: 'Bump version in package.json',
+    execute: async ctx => {
+      const pkgPath = join(ctx.project.path, 'package.json')
+      if (!(await Bun.file(pkgPath).exists())) return
+      const pkg = await Bun.file(pkgPath).json()
+      pkg.version = ctx.newVersion
+      await Bun.write(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+    },
+  })
+
+  steps.push(createHookStep('postBump'))
 
   steps.push({
     id: 'changelog',
@@ -132,6 +138,8 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
     })
   }
 
+  steps.push(createHookStep('preRelease'))
+
   if (ctx.env.hasGhCli) {
     steps.push({
       id: 'github-release',
@@ -141,6 +149,8 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       },
     })
   }
+
+  steps.push(createHookStep('postRelease'))
 
   return steps
 }

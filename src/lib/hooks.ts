@@ -1,5 +1,5 @@
 import { $ } from 'bun'
-import type { HookName, ReleaserConfig } from './types.js'
+import type { HookName, PipelineStep, ReleaserConfig } from './types.js'
 
 export async function runHook(
   name: HookName,
@@ -10,4 +10,15 @@ export async function runHook(
   if (!command) return
 
   await $`sh -c ${command}`.cwd(cwd).quiet()
+}
+
+export function createHookStep(name: HookName): PipelineStep {
+  return {
+    id: `hook-${name}`,
+    label: `Run ${name} hook`,
+    execute: async ctx => {
+      await runHook(name, ctx.releaserConfig, ctx.project.path)
+    },
+    skip: ctx => !ctx.releaserConfig?.hooks?.[name],
+  }
 }

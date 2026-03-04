@@ -6,6 +6,7 @@ import {
   getCurrentBranch,
   pushWithTags,
 } from '../git.js'
+import { createHookStep } from '../hooks.js'
 import type { PipelineStep, ReleaseContext } from '../types.js'
 
 export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
@@ -43,6 +44,8 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       },
     })
   }
+
+  steps.push(createHookStep('preBump'))
 
   steps.push({
     id: 'bump-version',
@@ -90,6 +93,8 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       }
     },
   })
+
+  steps.push(createHookStep('postBump'))
 
   steps.push({
     id: 'changelog',
@@ -196,6 +201,8 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
     }
   }
 
+  steps.push(createHookStep('preRelease'))
+
   if (ctx.env.hasGhCli) {
     steps.push({
       id: 'github-release',
@@ -205,6 +212,8 @@ export function getExpoSteps(ctx: ReleaseContext): PipelineStep[] {
       },
     })
   }
+
+  steps.push(createHookStep('postRelease'))
 
   return steps
 }
