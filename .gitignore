@@ -2,3 +2,4 @@ node_modules/
 dist/
 releaser
 *.tgz
+.DS_Store
