@@ -120,8 +120,9 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
         setWorkspacePackages(resolvedPackages)
       }
 
-      // For synchronized monorepos, the version of the source package (not the
-      // root package.json) drives bumps, tags, and npm publish.
+      // For synchronized monorepos, the source package (not the root
+      // package.json) drives the project name, version, bumps, tags, and
+      // npm publish — the root is just a workspace meta-package.
       let project: ProjectInfo = proj
       if (rc?.packages && rc.versioning !== 'independent' && resolvedPackages.length > 0) {
         const sourcePath = pickVersionSourcePath(rc.packages, rc.versionSource)
@@ -129,7 +130,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
           ? resolvedPackages.find(p => p.relativePath === sourcePath)
           : undefined
         if (sourcePkg) {
-          project = { ...proj, version: sourcePkg.version }
+          project = { ...proj, name: sourcePkg.name, version: sourcePkg.version }
         }
       }
 
@@ -250,8 +251,17 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
       const isIndependent = packageBumps.length > 0
       const effectiveBump = isIndependent ? packageBumps[0].bump : bump!
       const effectiveVersion = isIndependent ? packageBumps[0].newVersion : newVersion!
+      // Independent mode: surface the package being released as the project,
+      // not the monorepo meta-root.
+      const releaseProject = isIndependent
+        ? {
+            ...project!,
+            name: packageBumps[0].name,
+            version: packageBumps[0].currentVersion,
+          }
+        : project!
       const releaseCtx: ReleaseContext = {
-        project: project!,
+        project: releaseProject,
         bump: effectiveBump,
         newVersion: effectiveVersion,
         tag: isIndependent ? `${packageBumps[0].name}@${packageBumps[0].newVersion}` : `v${effectiveVersion}`,

@@ -48,22 +48,34 @@ export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps)
 
   const handlePackageSelect = (item: { value: string }) => {
     const pkg = packages[currentPkgIndex]
-    const publish = item.value === 'npm' ? 'npm' : false
-    const newConfigs = {
-      ...packageConfigs,
-      [pkg.relativePath]: { bump: true, publish } as PackageConfig,
+    let newConfigs = packageConfigs
+    if (item.value !== 'skip') {
+      const publish = item.value === 'npm' ? 'npm' : false
+      newConfigs = {
+        ...packageConfigs,
+        [pkg.relativePath]: { bump: true, publish } as PackageConfig,
+      }
+      setPackageConfigs(newConfigs)
     }
-    setPackageConfigs(newConfigs)
 
     if (currentPkgIndex + 1 < packages.length) {
       setCurrentPkgIndex(currentPkgIndex + 1)
-    } else if (versioning === 'synchronized' && packages.length > 1) {
-      // Synchronized monorepo with multiple packages: ask which one's
-      // package.json version drives the release.
-      setStep('version-source')
-    } else {
-      finalize(newConfigs)
+      return
     }
+
+    // Done iterating
+    const includedCount = Object.keys(newConfigs).length
+    if (includedCount === 0) {
+      // User skipped everything — nothing to release. Bail to the
+      // standard (non-monorepo) flow.
+      onSkip()
+      return
+    }
+    if (versioning === 'synchronized' && includedCount > 1) {
+      setStep('version-source')
+      return
+    }
+    finalize(newConfigs)
   }
 
   const handleVersionSourceSelect = (item: { value: string }) => {
@@ -111,10 +123,13 @@ export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps)
 
   if (step === 'packages') {
     const pkg = packages[currentPkgIndex]
-    const defaultIndex = pkg.private ? 1 : 0
+    // Default: private packages skip (e.g. example apps in Nitro modules),
+    // public packages publish to npm.
+    const defaultIndex = pkg.private ? 2 : 0
     const publishItems = [
-      { key: 'npm', label: 'npm', value: 'npm' },
-      { key: 'false', label: 'No (internal only)', value: 'false' },
+      { key: 'npm', label: 'Publish to npm', value: 'npm' },
+      { key: 'false', label: 'Internal only (bump, no publish)', value: 'false' },
+      { key: 'skip', label: 'Skip — exclude from releases', value: 'skip' },
     ]
 
     return (
@@ -131,14 +146,14 @@ export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps)
           <Box key={name} gap={1}>
             <Text color="green">✔</Text>
             <Text>
-              {name}: <Text color="cyan" bold>{config.publish === false ? 'no' : config.publish}</Text>
+              {name}: <Text color="cyan" bold>{config.publish === false ? 'internal' : config.publish}</Text>
             </Text>
           </Box>
         ))}
 
         <Box marginBottom={1} marginTop={1}>
           <Text bold>
-            Publish <Text color="yellow">{pkg.name}</Text>
+            Release <Text color="yellow">{pkg.name}</Text>
             {pkg.private ? <Text dimColor> (private)</Text> : ''}?
           </Text>
         </Box>
@@ -154,7 +169,8 @@ export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps)
   }
 
   if (step === 'version-source') {
-    const items = packages.map(pkg => {
+    const includedPackages = packages.filter(p => packageConfigs[p.relativePath])
+    const items = includedPackages.map(pkg => {
       const target = packageConfigs[pkg.relativePath]
       const suffix = target?.publish === 'npm' ? ' — publishes to npm' : ''
       return {
@@ -166,7 +182,7 @@ export function InitPhase({ cwd, packages, onComplete, onSkip }: InitPhaseProps)
 
     const defaultIndex = Math.max(
       0,
-      packages.findIndex(p => packageConfigs[p.relativePath]?.publish !== false),
+      includedPackages.findIndex(p => packageConfigs[p.relativePath]?.publish !== false),
     )
 
     return (
