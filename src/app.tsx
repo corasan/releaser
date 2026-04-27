@@ -1,6 +1,5 @@
 import { Box, Text, useApp } from 'ink'
 import { useCallback, useMemo, useState } from 'react'
-import { AIPhase } from './components/ai-phase.js'
 import { ConfirmPhase } from './components/confirm-phase.js'
 import { DetectedBadge, DetectPhase } from './components/detect-phase.js'
 import {
@@ -42,7 +41,6 @@ type Phase =
   | 'package-select'
   | 'version'
   | 'options'
-  | 'ai'
   | 'confirm'
   | 'release'
   | 'done'
@@ -73,7 +71,6 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
   })
   const [bump, setBump] = useState<Bump | null>(null)
   const [answers, setAnswers] = useState<Answers>({})
-  const [changelog, setChangelog] = useState<string | null>(null)
   const [newVersion, setNewVersion] = useState<string | null>(null)
   const [preRelease, setPreRelease] = useState<PreReleaseChannel | undefined>()
   const [releaserConfig, setReleaserConfig] = useState<ReleaserConfig | null>(null)
@@ -173,6 +170,10 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
         const currentVersion = project.version
         const currentIsPreRelease = isPreRelease(currentVersion)
 
+        let selectedBump: Bump = 'patch'
+        let selectedNewVersion = currentVersion
+        let selectedPreRelease: PreReleaseChannel | undefined
+
         if (cliBumpFlag) {
           if (!currentIsPreRelease) {
             setError('Error: --bump requires a pre-release version')
@@ -180,11 +181,9 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
             setTimeout(() => exit(), 100)
             return
           }
-          const channel = getPreReleaseChannel(currentVersion)!
-          const newVer = bumpPreRelease(currentVersion, null, channel)
-          setNewVersion(newVer)
-          setBump('patch')
-          setPreRelease(channel)
+          selectedPreRelease = getPreReleaseChannel(currentVersion)!
+          selectedNewVersion = bumpPreRelease(currentVersion, null, selectedPreRelease)
+          selectedBump = 'patch'
         } else if (cliChannel) {
           if (!currentIsPreRelease && !cliBump) {
             setError(`Error: --${cliChannel} from stable requires --patch, --minor, or --major`)
@@ -192,20 +191,26 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
             setTimeout(() => exit(), 100)
             return
           }
-          const newVer = bumpPreRelease(currentVersion, cliBump ?? null, cliChannel)
-          setNewVersion(newVer)
-          setBump(cliBump ?? 'patch')
-          setPreRelease(cliChannel)
+          selectedNewVersion = bumpPreRelease(currentVersion, cliBump ?? null, cliChannel)
+          selectedBump = cliBump ?? 'patch'
+          selectedPreRelease = cliChannel
         } else if (cliBump) {
-          const newVer = bumpVersion(currentVersion, cliBump)
-          setNewVersion(newVer)
-          setBump(cliBump)
+          selectedNewVersion = bumpVersion(currentVersion, cliBump)
+          selectedBump = cliBump
         }
+
+        setBump(selectedBump)
+        setNewVersion(selectedNewVersion)
+        setPreRelease(selectedPreRelease)
 
         if (projectConfig.options.length > 0) {
           setPhase('options')
         } else {
-          setPhase('ai')
+          buildContextAndConfirm(answers, {
+            bump: selectedBump,
+            newVersion: selectedNewVersion,
+            preRelease: selectedPreRelease,
+          })
         }
         return
       }
@@ -224,6 +229,55 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
     [exit],
   )
 
+  // Build release context and advance to confirm.
+  // `overrides` lets call sites pass freshly-selected values that haven't
+  // yet flushed through state setters.
+  const buildContextAndConfirm = useCallback(
+    (
+      finalAnswers: Answers,
+      overrides?: {
+        bump?: Bump
+        newVersion?: string
+        preRelease?: PreReleaseChannel
+        packageBumps?: PackageBump[]
+      },
+    ) => {
+      const finalBump = overrides?.bump ?? bump
+      const finalNewVersion = overrides?.newVersion ?? newVersion
+      const finalPreRelease = overrides?.preRelease ?? preRelease
+      const finalPackageBumps = overrides?.packageBumps ?? packageBumps
+      const isIndependent = finalPackageBumps.length > 0
+      const effectiveBump = isIndependent ? finalPackageBumps[0].bump : finalBump!
+      const effectiveVersion = isIndependent ? finalPackageBumps[0].newVersion : finalNewVersion!
+      // Independent mode: surface the package being released as the project,
+      // not the monorepo meta-root.
+      const releaseProject = isIndependent
+        ? {
+            ...project!,
+            name: finalPackageBumps[0].name,
+            version: finalPackageBumps[0].currentVersion,
+          }
+        : project!
+      const releaseCtx: ReleaseContext = {
+        project: releaseProject,
+        bump: effectiveBump,
+        newVersion: effectiveVersion,
+        tag: isIndependent ? `${finalPackageBumps[0].name}@${finalPackageBumps[0].newVersion}` : `v${effectiveVersion}`,
+        env,
+        answers: finalAnswers,
+        projectConfig,
+        releaserConfig,
+        preRelease: finalPreRelease,
+        packageBumps: isIndependent ? finalPackageBumps : undefined,
+      }
+      const steps = getPipelineSteps(releaseCtx)
+      setPipelineSteps(steps)
+      setCtx(releaseCtx)
+      setPhase('confirm')
+    },
+    [project, bump, newVersion, preRelease, env, projectConfig, releaserConfig, packageBumps],
+  )
+
   const handleVersionSelect = useCallback(
     (selectedBump: Bump, selectedNewVersion: string, channel?: PreReleaseChannel) => {
       setBump(selectedBump)
@@ -233,65 +287,23 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
       if (projectConfig.options.length > 0) {
         setPhase('options')
       } else {
-        setPhase('ai')
+        buildContextAndConfirm(answers, {
+          bump: selectedBump,
+          newVersion: selectedNewVersion,
+          preRelease: channel,
+        })
       }
     },
-    [projectConfig],
+    [projectConfig, buildContextAndConfirm, answers],
   )
 
-  const handleOptionsComplete = useCallback((selectedAnswers: Answers) => {
-    setAnswers(selectedAnswers)
-    setPhase('ai')
-  }, [])
-
-  // Build release context and advance to confirm
-  const buildContextAndConfirm = useCallback(
-    (finalChangelog: string | null, finalAnswers: Answers, finalPackageChangelogs?: Record<string, string>) => {
-      setChangelog(finalChangelog)
-      const isIndependent = packageBumps.length > 0
-      const effectiveBump = isIndependent ? packageBumps[0].bump : bump!
-      const effectiveVersion = isIndependent ? packageBumps[0].newVersion : newVersion!
-      // Independent mode: surface the package being released as the project,
-      // not the monorepo meta-root.
-      const releaseProject = isIndependent
-        ? {
-            ...project!,
-            name: packageBumps[0].name,
-            version: packageBumps[0].currentVersion,
-          }
-        : project!
-      const releaseCtx: ReleaseContext = {
-        project: releaseProject,
-        bump: effectiveBump,
-        newVersion: effectiveVersion,
-        tag: isIndependent ? `${packageBumps[0].name}@${packageBumps[0].newVersion}` : `v${effectiveVersion}`,
-        env,
-        answers: finalAnswers,
-        projectConfig,
-        releaserConfig,
-        changelog: finalChangelog || undefined,
-        packageChangelogs: finalPackageChangelogs,
-        preRelease,
-        packageBumps: isIndependent ? packageBumps : undefined,
-      }
-      const steps = getPipelineSteps(releaseCtx)
-      setPipelineSteps(steps)
-      setCtx(releaseCtx)
-      setPhase('confirm')
+  const handleOptionsComplete = useCallback(
+    (selectedAnswers: Answers) => {
+      setAnswers(selectedAnswers)
+      buildContextAndConfirm(selectedAnswers)
     },
-    [project, newVersion, preRelease, env, projectConfig, releaserConfig, packageBumps],
+    [buildContextAndConfirm],
   )
-
-  const handleAIResult = useCallback(
-    (generatedChangelog: string | null, pkgChangelogs?: Record<string, string>) => {
-      buildContextAndConfirm(generatedChangelog, answers, pkgChangelogs)
-    },
-    [answers, buildContextAndConfirm],
-  )
-
-  const handleAISkip = useCallback(() => {
-    handleAIResult(null)
-  }, [handleAIResult])
 
   const handleConfirm = useCallback(() => {
     setPhase('release')
@@ -354,14 +366,6 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
               ))}
             </Box>
           )}
-          {changelog && phase !== 'ai' && (
-            <Box gap={1}>
-              <Text color="green">✔</Text>
-              <Text>
-                Changelog: <Text color="magenta">AI generated</Text>
-              </Text>
-            </Box>
-          )}
         </Box>
       )}
 
@@ -397,7 +401,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
               if (projectConfig.options.length > 0) {
                 setPhase('options')
               } else {
-                setPhase('ai')
+                buildContextAndConfirm(answers, { packageBumps: selectedBumps })
               }
             }}
             onCancel={handleCancel}
@@ -411,9 +415,6 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
             options={projectConfig.options}
             onComplete={handleOptionsComplete}
           />
-        )}
-        {phase === 'ai' && (
-          <AIPhase onResult={handleAIResult} onSkip={handleAISkip} releaserConfig={releaserConfig} cwd={cwd} packageBumps={packageBumps.length > 0 ? packageBumps : undefined} />
         )}
         {phase === 'confirm' && ctx && (
           <ConfirmPhase

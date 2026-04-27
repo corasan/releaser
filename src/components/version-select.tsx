@@ -13,7 +13,6 @@ import {
 
 interface VersionSelectProps {
   project: ProjectInfo
-  aiSuggestion?: { bump: string; reason: string } | null
   onSelect: (bump: Bump, newVersion: string, preRelease?: PreReleaseChannel) => void
 }
 
@@ -45,7 +44,6 @@ type Step = 'release-type' | 'stable-bump' | 'pre-release-bump' | 'pre-release-c
 
 export function VersionSelect({
   project,
-  aiSuggestion,
   onSelect,
 }: VersionSelectProps) {
   const currentIsPreRelease = isPreRelease(project.version)
@@ -95,18 +93,6 @@ export function VersionSelect({
     ]
     return (
       <Box flexDirection="column">
-        {aiSuggestion && (
-          <Box marginBottom={1} gap={1}>
-            <Text color="magenta">⚡</Text>
-            <Text>
-              AI suggests{' '}
-              <Text color="magenta" bold>
-                {aiSuggestion.bump}
-              </Text>
-              <Text dimColor> — {aiSuggestion.reason}</Text>
-            </Text>
-          </Box>
-        )}
         <Box marginBottom={1}>
           <Text bold>How do you want to release?</Text>
         </Box>

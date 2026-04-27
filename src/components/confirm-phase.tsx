@@ -80,12 +80,6 @@ export function ConfirmPhase({
             <Text dimColor>Tag:</Text>
             <Text>{ctx.tag}</Text>
           </Box>
-          {ctx.changelog && (
-            <Box gap={1}>
-              <Text dimColor>Changelog:</Text>
-              <Text color="green">AI generated</Text>
-            </Box>
-          )}
         </Box>
 
         <Box marginTop={1} flexDirection="column">

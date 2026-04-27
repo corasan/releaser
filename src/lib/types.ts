@@ -87,8 +87,6 @@ export interface ReleaseContext {
   answers: Answers
   projectConfig: ParsedProjectConfig
   releaserConfig: ReleaserConfig | null
-  changelog?: string
-  packageChangelogs?: Record<string, string>
   preRelease?: PreReleaseChannel
   packageBumps?: PackageBump[]
 }
@@ -124,6 +122,4 @@ export interface ReleaserConfig {
   versionSource?: string
   packages?: Record<string, PackageConfig>
   hooks?: Partial<Record<HookName, string>>
-  changelog?: boolean          // write CHANGELOG.md (default: auto-detect if file exists)
-  aiReleaseNotes?: boolean     // use AI for GitHub release notes (default: false)
 }

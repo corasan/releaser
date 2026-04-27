@@ -51,15 +51,6 @@
         "postRelease": { "type": "string", "description": "Run after GitHub release" }
       },
       "additionalProperties": false
-    },
-    "changelog": {
-      "type": "boolean",
-      "description": "Whether to write CHANGELOG.md. Defaults to auto-detect based on file existence."
-    },
-    "aiReleaseNotes": {
-      "type": "boolean",
-      "description": "Whether to use AI-generated changelog as GitHub release notes.",
-      "default": false
     }
   },
   "additionalProperties": false

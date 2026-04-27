@@ -85,25 +85,6 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
   steps.push(createHookStep('postBump'))
 
   steps.push({
-    id: 'changelog',
-    label: 'Update CHANGELOG.md',
-    execute: async ctx => {
-      if (!ctx.changelog) return
-      const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
-      const date = new Date().toISOString().split('T')[0]
-      const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
-
-      if (await Bun.file(changelogPath).exists()) {
-        const existing = await Bun.file(changelogPath).text()
-        await Bun.write(changelogPath, entry + existing)
-      } else {
-        await Bun.write(changelogPath, `# Changelog\n\n${entry}`)
-      }
-    },
-    skip: ctx => !ctx.changelog,
-  })
-
-  steps.push({
     id: 'commit-tag',
     label: 'Commit and create tag',
     execute: async ctx => {
@@ -113,8 +94,6 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
         files.push(tauriConf)
       const cargoPath = join(ctx.project.path, 'src-tauri', 'Cargo.toml')
       if (await Bun.file(cargoPath).exists()) files.push('src-tauri/Cargo.toml')
-      if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists())
-        files.push('CHANGELOG.md')
       await commitRelease(files, `chore: release ${ctx.tag}`, ctx.tag)
     },
   })
@@ -145,7 +124,7 @@ export function getTauriSteps(ctx: ReleaseContext): PipelineStep[] {
       id: 'github-release',
       label: 'Create GitHub release',
       execute: async ctx => {
-        return await createGitHubRelease(ctx.tag, ctx.changelog)
+        return await createGitHubRelease(ctx.tag)
       },
     })
   }

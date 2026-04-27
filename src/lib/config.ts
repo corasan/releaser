@@ -46,9 +46,6 @@ export async function parseReleaserConfig(
 
   if (obj.hooks) config.hooks = obj.hooks as ReleaserConfig['hooks']
 
-  if (typeof obj.changelog === 'boolean') config.changelog = obj.changelog
-  if (typeof obj.aiReleaseNotes === 'boolean') config.aiReleaseNotes = obj.aiReleaseNotes
-
   return config
 }
 

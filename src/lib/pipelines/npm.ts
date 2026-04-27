@@ -139,29 +139,6 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
   steps.push(createHookStep('postBump'))
 
   steps.push({
-    id: 'changelog',
-    label: 'Update CHANGELOG.md',
-    execute: async ctx => {
-      if (!ctx.changelog) return
-      const changelogPath = join(ctx.project.path, 'CHANGELOG.md')
-      const date = new Date().toISOString().split('T')[0]
-      const entry = `## ${ctx.newVersion} (${date})\n\n${ctx.changelog}\n\n`
-
-      if (await Bun.file(changelogPath).exists()) {
-        const existing = await Bun.file(changelogPath).text()
-        await Bun.write(changelogPath, entry + existing)
-      } else {
-        await Bun.write(changelogPath, `# Changelog\n\n${entry}`)
-      }
-    },
-    skip: ctx => {
-      if (!ctx.changelog) return true
-      if (ctx.releaserConfig?.changelog === false) return true
-      return false
-    },
-  })
-
-  steps.push({
     id: 'commit-tag',
     label: 'Commit and create tag',
     execute: async ctx => {
@@ -177,8 +154,6 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
       } else {
         files.push('package.json')
       }
-      if (await Bun.file(join(ctx.project.path, 'CHANGELOG.md')).exists())
-        files.push('CHANGELOG.md')
       if (await Bun.file(join(ctx.project.path, 'package-lock.json')).exists())
         files.push('package-lock.json')
 
@@ -210,10 +185,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
           id: `github-release-${b.relativePath.replace(/\//g, '-')}`,
           label: `Create GitHub release for ${b.name}@${b.newVersion}`,
           execute: async ctx => {
-            const notes = ctx.releaserConfig?.aiReleaseNotes
-              ? (ctx.packageChangelogs?.[b.relativePath] ?? ctx.changelog)
-              : undefined
-            return await createGitHubRelease(tag, notes, !!ctx.preRelease)
+            return await createGitHubRelease(tag, !!ctx.preRelease)
           },
         })
       }
@@ -222,8 +194,7 @@ export function getNpmSteps(ctx: ReleaseContext): PipelineStep[] {
         id: 'github-release',
         label: 'Create GitHub release',
         execute: async ctx => {
-          const notes = ctx.releaserConfig?.aiReleaseNotes ? ctx.changelog : undefined
-          return await createGitHubRelease(ctx.tag, notes, !!ctx.preRelease)
+          return await createGitHubRelease(ctx.tag, !!ctx.preRelease)
         },
       })
     }
