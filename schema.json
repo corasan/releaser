@@ -13,6 +13,10 @@
       "default": "synchronized",
       "description": "Versioning strategy for monorepo packages. 'synchronized' bumps all packages to the same version, 'independent' allows per-package versioning."
     },
+    "versionSource": {
+      "type": "string",
+      "description": "Relative path of the package whose package.json version is the source of truth for the release. Synchronized monorepos only. Defaults to the first publishable package."
+    },
     "packages": {
       "type": "object",
       "description": "Map of relative package paths to their release configuration.",

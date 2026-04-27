@@ -1,7 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { join } from 'node:path'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { bumpMonorepoVersions, bumpMonorepoVersionsIndependent, getPublishablePackages } from './monorepo.js'
+import {
+  bumpMonorepoVersions,
+  bumpMonorepoVersionsIndependent,
+  getPublishablePackages,
+  pickVersionSourcePath,
+} from './monorepo.js'
 import type { PackageConfig } from './types.js'
 
 const fixturesDir = join(import.meta.dir, '__fixtures__', 'monorepo')
@@ -115,5 +120,46 @@ describe('getPublishablePackages', () => {
 
     const result = getPublishablePackages(packages)
     expect(result).toEqual([])
+  })
+})
+
+describe('pickVersionSourcePath', () => {
+  test('honors explicit override when valid', () => {
+    const packages: Record<string, PackageConfig> = {
+      'package': { bump: true, publish: 'npm' },
+      'example': { bump: true, publish: false },
+    }
+    expect(pickVersionSourcePath(packages, 'example')).toBe('example')
+  })
+
+  test('falls back to first publishable when override is unknown', () => {
+    const packages: Record<string, PackageConfig> = {
+      'example': { bump: true, publish: false },
+      'package': { bump: true, publish: 'npm' },
+    }
+    expect(pickVersionSourcePath(packages, 'missing')).toBe('package')
+  })
+
+  test('defaults to the first publishable package', () => {
+    const packages: Record<string, PackageConfig> = {
+      'example': { bump: true, publish: false },
+      'package': { bump: true, publish: 'npm' },
+    }
+    expect(pickVersionSourcePath(packages)).toBe('package')
+  })
+
+  test('falls back to first bumpable when nothing publishes', () => {
+    const packages: Record<string, PackageConfig> = {
+      'apps/web': { bump: true, publish: false },
+      'apps/docs': { bump: true, publish: false },
+    }
+    expect(pickVersionSourcePath(packages)).toBe('apps/web')
+  })
+
+  test('returns null when no package bumps or publishes', () => {
+    const packages: Record<string, PackageConfig> = {
+      'apps/legacy': { bump: false, publish: false },
+    }
+    expect(pickVersionSourcePath(packages)).toBeNull()
   })
 })

@@ -42,6 +42,8 @@ export async function parseReleaserConfig(
     config.versioning = obj.versioning as ReleaserConfig['versioning']
   }
 
+  if (typeof obj.versionSource === 'string') config.versionSource = obj.versionSource
+
   if (obj.hooks) config.hooks = obj.hooks as ReleaserConfig['hooks']
 
   if (typeof obj.changelog === 'boolean') config.changelog = obj.changelog

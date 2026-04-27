@@ -45,3 +45,22 @@ export function getPublishablePackages(
     .filter(([, config]) => config.publish !== false)
     .map(([path]) => path)
 }
+
+/**
+ * Pick the package whose package.json version drives a synchronized release.
+ * Order: explicit override → first publishable → first bumpable → null.
+ */
+export function pickVersionSourcePath(
+  packages: Record<string, PackageConfig>,
+  explicit?: string,
+): string | null {
+  if (explicit && packages[explicit]) return explicit
+
+  const publishable = Object.entries(packages).find(([, c]) => c.publish !== false)
+  if (publishable) return publishable[0]
+
+  const bumpable = Object.entries(packages).find(([, c]) => c.bump)
+  if (bumpable) return bumpable[0]
+
+  return null
+}

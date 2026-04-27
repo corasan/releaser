@@ -15,6 +15,7 @@ import { VersionSelect } from './components/version-select.js'
 import { PackageSelect } from './components/package-select.js'
 import { InitPhase } from './components/init-phase.js'
 import { parseReleaserConfig } from './lib/config.js'
+import { pickVersionSourcePath } from './lib/monorepo.js'
 import { getPipelineSteps } from './lib/pipelines/index.js'
 import type {
   Answers,
@@ -105,7 +106,6 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
       detectedEnv: DetectedEnv,
       config: ParsedProjectConfig,
     ) => {
-      setProject(proj)
       setEnv(detectedEnv)
       setProjectConfig(config)
 
@@ -114,21 +114,37 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
       setReleaserConfig(rc)
 
       const ws = await detectWorkspaces(cwd)
+      let resolvedPackages: WorkspacePackage[] = []
       if (ws) {
-        const pkgs = await resolveWorkspacePackages(cwd, ws.patterns)
-        setWorkspacePackages(pkgs)
+        resolvedPackages = await resolveWorkspacePackages(cwd, ws.patterns)
+        setWorkspacePackages(resolvedPackages)
+      }
 
-        if (!rc) {
-          setPhase('init')
-          return
+      // For synchronized monorepos, the version of the source package (not the
+      // root package.json) drives bumps, tags, and npm publish.
+      let project: ProjectInfo = proj
+      if (rc?.packages && rc.versioning !== 'independent' && resolvedPackages.length > 0) {
+        const sourcePath = pickVersionSourcePath(rc.packages, rc.versionSource)
+        const sourcePkg = sourcePath
+          ? resolvedPackages.find(p => p.relativePath === sourcePath)
+          : undefined
+        if (sourcePkg) {
+          project = { ...proj, version: sourcePkg.version }
         }
       }
 
+      setProject(project)
+
+      if (ws && !rc) {
+        setPhase('init')
+        return
+      }
+
       if (publishOnly) {
-        const currentVersion = proj.version
+        const currentVersion = project.version
         const channel = isPreRelease(currentVersion) ? getPreReleaseChannel(currentVersion) : undefined
         const releaseCtx: ReleaseContext = {
-          project: proj,
+          project,
           bump: 'patch',
           newVersion: currentVersion,
           tag: `v${currentVersion}`,
@@ -153,7 +169,7 @@ export function App({ cliChannel, cliBump, cliBumpFlag, publishOnly }: AppProps)
 
       // CLI flags: skip version select
       if (cliChannel || cliBumpFlag || cliBump) {
-        const currentVersion = proj.version
+        const currentVersion = project.version
         const currentIsPreRelease = isPreRelease(currentVersion)
 
         if (cliBumpFlag) {

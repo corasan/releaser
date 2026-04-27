@@ -119,6 +119,9 @@ export type HookName =
 
 export interface ReleaserConfig {
   versioning?: VersioningStrategy
+  /** Relative path of the package whose package.json version drives the release.
+   *  Synchronized monorepos only. Defaults to the first publishable package. */
+  versionSource?: string
   packages?: Record<string, PackageConfig>
   hooks?: Partial<Record<HookName, string>>
   changelog?: boolean          // write CHANGELOG.md (default: auto-detect if file exists)
